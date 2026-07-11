@@ -17,7 +17,7 @@
 现有流程存在以下痛点：
 - **目录结构随时间爆炸**：每个主题 × 4 个状态目录，查找困难
 - **审核是考古式操作**：无缩略图网格、无批量操作、无键盘快捷键
-- **发布是纯体力搬运**：无"发布包"概念，多平台需不同文案格式
+- **发布是纯体力搬运**：无系统化的发布登记，多平台需手动操作
 - **无数据回流闭环**：发布后无法追踪表现，无法数据驱动优化
 - **素材与元数据分离**：ComfyUI 生成参数（seed、prompt）与图片文件分离，爆款难以复刻
 
@@ -29,7 +29,7 @@
 - **Workspace 即数据库**：所有数据以纯文件（Markdown + JSON + 素材）形式存在，天然可 Git 版本控制
 - **元数据驱动状态**：用 `.meta.json` sidecar 文件标记素材状态，物理路径永不改变
 - **看板视图替代目录浏览**：聚合所有主题的待审核素材，支持批量操作
-- **发布包概念**：素材 + 文案 + 平台模板 = 一键生成的发布就绪文件
+- **任务驱动流水线**：创作任务（素材/文案）串联从生成到发布的全流程
 - **数据闭环**：手动录入发布后数据，自动分析主题表现与爆款复刻
 
 ---
@@ -44,43 +44,57 @@
 - 一键触发 Agent 批量生成素材（指定主题、数量、变体策略）
 
 #### FR-02 看板视图（Kanban）
-- 四列看板：生成中 / 待审核 / 已审核 / 发布日历
-- 支持按主题筛选（手机壁纸、电脑壁纸、童话仙境等）
-- 支持按日期范围筛选
-- 素材卡片显示：缩略图、主题标签、生成参数摘要
+- 看板用于可视化查看创作任务的进展情况
+- 五列看板（由 task-lifecycle.json 配置驱动）：生成中 / 待审核 / 已审核 / 排期中 / 已发布
+- 展示的是**任务卡片**（对应 `tasks/<uuid>/` 目录），而非单个素材文件
+- 新建任务（status=initialized）默认不在看板显示
+- 已驳回、已归档的任务也不在看板显示
+- 不同类型的任务卡片使用不同颜色和字段（素材=蓝色系，文案=绿色系）
+- 列数、列名、卡片颜色、合法流转均由 `configs/workflows/task-lifecycle.json` 配置驱动
+- 拖拽改变任务状态（依据配置文件中的合法流转）
+- 自动刷新（每 30 秒轮询 WebUI API 检测变化）
+- 无顶部筛选栏（主题、时间、搜索已移除）
 
 #### FR-03 审核模式
-- 网格缩略图浏览（所有主题混排，可筛选）
-- 批量选择 + 键盘快捷键：`1`=通过，`2`=删除，`3`=稍后，`4`=标星，`5`=备注
-- 悬停预览大图，显示完整生成参数（seed、prompt、workflow 来源）
-- 相似素材分组（同一工作流+seed 变体自动聚类）
+- 从 `tasks/` 中读取状态为 `pending_review` 的任务
+- 区分任务类型渲染：素材任务展示图片/视频预览；文案任务展示 Markdown 渲染预览
+- 网格缩略图浏览（素材任务）
+- 批量选择 + 键盘快捷键：`1`=通过，`2`=驳回
+- 悬停预览大图，显示完整生成参数（素材任务）
+- 审核操作（通过/驳回）更新任务状态
 
-#### FR-04 发布包生成
-- 选择已审核素材 + 文案 → 生成平台专用发布包
-- 发布包为 Markdown 文件，包含：
-  - Frontmatter：平台、标题、标签、封面、素材列表
-  - 正文：根据平台模板自动排版
-- 支持多平台模板：头条、小红书、抖音、知乎等
+#### FR-04 发布管理
+- 发布表单：选择发布平台、发布类型（根据所选平台动态加载）、发布文案（从图文库选择已审核文案）、发布时间
+- 素材不能直接发布，必须包装为文案后才能发布
+- 发布记录存储，按时间倒序展示
+- 支持按平台、状态筛选
+- 提交发布时更新关联文案状态为 scheduled
 
-#### FR-05 发布日历
-- 以日历形式展示排期（日/周视图）
-- 拖拽发布包到指定日期
-- 发布完成后一键标记，自动归档
+#### FR-05 任务系统
+- 任务分类：素材任务（产出图片/视频）和文案任务（产出 Markdown 图文）
+- 任务模式：手工（人工修改状态）和 Agent（Hermes 定时任务自动扫描并驱动流转）
+- 任务存储在 `tasks/<uuid>/` 目录，包含 `.meta.json` 和 `brief.md`
+- 素材任务状态流：initialized → generating → pending_review → approved/rejected
+- 文案任务状态流：initialized → generating → pending_review → approved → scheduled → published → archived
+- 每个任务类型的状态机由 `configs/workflows/task-lifecycle.json` 配置驱动
+- 前端根据配置自动渲染看板列、状态操作按钮和卡片样式
 
-#### FR-06 数据看板
-- 主题表现统计：发布量、平均互动、爆款数量
-- 爆款素材复刻：查看爆款参数（seed、workflow、prompt），一键生成同参数变体
-- 发布历史时间线
+#### FR-06 图文库
+- 图文以 Markdown + .meta.json sidecar 格式存储在 `copywriting/YYYY/MM/<uuid>/`
+- Markdown 中引用素材库路径（`../../assets/YYYY/MM/DD/file.jpg`）
+- 图文内容类型：标题+图文混排、描述+多图（最多9张）、单视频
+- 分片索引：`.index/copywriting/YYYY/MM/`
+- 支持按状态筛选（待审核/已审核/已发布等）
 
-#### FR-07 主题策略中心
-- 管理主题配置（theme.json）：风格、标签、最佳发布时间、提示词模板
-- 主题表现对比
-- 主题素材库存量预警
+#### FR-07 平台配置
+- 平台 CRUD（不可删除，可禁用）
+- 每个平台可自定义发布类型（如头条：微头条/文章/视频）
+- 平台存储在 `configs/platforms/<id>.json`
 
-#### FR-08 素材母库
-- 所有素材物理归档在 `archive/YYYY/MM/`
-- 支持全局搜索（按主题、标签、prompt 关键词、日期）
-- 支持素材复用（一张素材可配多份文案，用于不同平台/A-B 测试）
+#### FR-08 日历
+- 从发布管理移至资源管理分组
+- 统计展示每日各类成果（素材成果、图文成果）生成的数量
+- 不再展示发布排期数据
 
 ### 2.2 非功能需求
 
@@ -105,13 +119,17 @@
 │                        Hermes WebUI                             │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │  Media Studio Extension (纯前端)                          │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  │   │
-│  │  │ 看板视图  │  │ 审核模式  │  │ 发布日历  │  │数据看板│  │   │
-│  │  │ Kanban   │  │ Review   │  │ Calendar │  │ Stats  │  │   │
-│  │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───┬────┘  │   │
-│  │       │             │             │            │       │   │
-│  │  ┌────┴─────────────┴─────────────┴────────────┘       │   │
-│  │  │         Workspace API Client (fetch)                │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌────────┐  ┌────────┐  │   │
+│  │  │ 看板视图  │  │ 审核模式  │  │任务视图 │  │发布视图│  │   │
+│  │  │ Kanban   │  │ Review   │  │ Tasks  │  │Publish │  │   │
+│  │  └────┬─────┘  └────┬─────┘  └───┬────┘  └───┬────┘  │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │   │   │
+│  │  │ 图文库   │  │ 平台配置  │  │ 日历     │          │   │   │
+│  │  │Copywrite │  │Platforms │  │ Calendar │          │   │   │
+│  │  └────┬─────┘  └────┬─────┘  └────┬─────┘          │   │   │
+│  │       │             │             │                 │   │   │
+│  │  ┌────┴─────────────┴─────────────┴─────────────────┘   │   │
+│  │  │              Workspace API Client (fetch)             │   │
 │  │  │  /api/workspace/tree  /api/workspace/file           │   │   │
 │  │  └─────────────────────┬───────────────────────────────┘   │   │
 │  └────────────────────────┼───────────────────────────────────┘   │
@@ -149,14 +167,19 @@ media-studio/
 │   └── {YYYY}/{MM}/{DD}/
 │       └── {theme}__{HHmmss}__{seq}.{ext}
 │       └── {theme}__{HHmmss}__{seq}.{ext}.meta.json
-├── pipeline/                        # 流水线视图层（基于 .ref 引用文件，不移动真实文件）
+├── tasks/                           # 创作任务目录
+│   └── {uuid}/
+│       ├── .meta.json               # 任务类型、模式、状态、流转历史
+│       └── brief.md                 # 创作简报/提示词
+├── copywriting/                     # 图文成果（Markdown + meta sidecar）
+│   └── {YYYY}/{MM}/{uuid}/
+│       ├── content.md               # Markdown 图文内容
+│       └── .meta.json               # 元数据（标题、类型、状态、发布记录）
+├── pipeline/                        # 流水线视图层（基于 .ref 引用文件）
 │   ├── 01-generating/
 │   ├── 02-pending-review/
 │   ├── 03-approved/
 │   ├── 04-scheduled/
-│   │   └── 2026-07-11/
-│   │       ├── 头条-童话仙境.md     # 发布包
-│   │       └── 小红书-手机壁纸.md
 │   └── 05-published/
 │       └── {filename}.ref           # → {"asset": "assets/YYYY/MM/DD/file.png"}
 ├── archive/{theme}/{YYYY}/{MM}/      # 发布归档（按主题+日期分层）
@@ -164,7 +187,10 @@ media-studio/
 └── .index/                          # 可扩展分层索引
     ├── manifest.json                # 全局清单
     ├── pipeline.json                # 流水线状态索引
-    └── {YYYY}/{MM}/assets.json      # 月度分片索引
+    ├── tasks.json                   # 任务清单索引
+    └── {YYYY}/{MM}/
+        ├── assets.json              # 素材月度分片索引
+        └── copywriting.json         # 图文月度分片索引
 ```
 
 ### 3.3 数据模型
@@ -327,56 +353,76 @@ url: null
 }
 ```
 
+#### 3.3.5 任务元数据
+
+每个任务在 `tasks/<uuid>/.meta.json` 中记录：
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "media | copy",
+  "mode": "manual | agent",
+  "status": "initialized | generating | pending_review | ...",
+  "status_history": [
+    { "from": "initialized", "to": "generating", "at": "2026-07-11T14:30:00Z", "note": "开始生成" }
+  ],
+  "brief": "brief.md",
+  "created_at": "2026-07-11T14:30:00Z",
+  "outputs": [
+    { "type": "asset | copy", "path": "assets/2026/07/11/xxx.jpg" }
+  ]
+}
+```
+
+#### 3.3.6 图文元数据
+
+每篇图文在 `copywriting/YYYY/MM/<uuid>/.meta.json` 中记录：
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "title": "...",
+  "type": "图文混排 | 多图 | 单视频",
+  "status": "draft | pending_review | approved | published | archived",
+  "status_history": [...],
+  "source_task": "550e8400-...",
+  "cover_image": "assets/2026/07/11/xxx.jpg",
+  "images": ["assets/2026/07/11/xxx.jpg"],
+  "publish_records": [
+    { "platform": "toutiao", "type": "文章", "published_at": "2026-07-11T18:00:00Z" }
+  ]
+}
+```
+
+#### 3.3.7 平台配置
+
+每个平台在 `configs/platforms/<id>.json` 中配置：
+
+```json
+{
+  "id": "toutiao",
+  "name": "头条",
+  "enabled": true,
+  "publish_types": ["微头条", "文章", "视频"],
+  "api_endpoint": null
+}
+```
+
 ### 3.4 状态流转
 
+状态流转由 `configs/workflows/task-lifecycle.json` 配置驱动。看板列、状态转换按钮、卡片颜色均从配置读取。
+
+素材任务流转：
 ```
-┌─────────────┐     Agent 生成      ┌─────────────┐
-│   工作流     │ ─────────────────→ │   生成中     │
-│  (workflow) │                    │ (generating)│
-└─────────────┘                    └──────┬──────┘
-                                        │ 生成完成
-                                        ▼
-                              ┌─────────────┐
-                              │  待审核      │
-                              │(pending-   │
-                              │  review)    │
-                              └──────┬──────┘
-                                     │ 审核操作
-                    ┌────────────────┼────────────────┐
-                    │                │                │
-                    ▼                ▼                ▼
-              ┌─────────┐    ┌─────────┐    ┌─────────┐
-              │  通过   │    │  删除   │    │  稍后   │
-              │(approved)│    │(deleted)│    │(deferred)│
-              └────┬────┘    └─────────┘    └─────────┘
-                   │
-                   ▼
-            ┌─────────────┐
-            │  已审核素材库 │
-            │  (approved)   │
-            └──────┬──────┘
-                   │ 选择素材 + 文案
-                   ▼
-            ┌─────────────┐
-            │  发布包生成   │
-            │  (package)   │
-            └──────┬──────┘
-                   │ 排期
-                   ▼
-            ┌─────────────┐
-            │  待发布      │
-            │ (scheduled)  │
-            └──────┬──────┘
-                   │ 手动发布到平台
-                   ▼
-            ┌─────────────┐
-            │  已发布      │
-            │ (published)  │
-            └──────┬──────┘
-                   │ 录入数据
-                   ▼
-            ┌─────────────┐
-            │  数据归档    │
+initialized → generating → pending_review → approved (最终)
+                                    ↘ rejected (废弃，不在看板显示)
+```
+
+文案任务流转：
+```
+initialized → generating → pending_review → approved → scheduled → published → archived (最终)
+                                    ↘ rejected (废弃，不在看板显示)
+```
             │  (archived)  │
             └─────────────┘
 ```
@@ -571,14 +617,15 @@ media-studio-extension/
 │   ├── state.js                    # 全局状态管理（内存）
 │   ├── router.js                   # 视图路由（看板/审核/日历/数据）
 │   ├── components/
-│   │   ├── KanbanBoard.js          # 看板视图
-│   │   ├── ReviewMode.js           # 审核模式
-│   │   ├── PackageEditor.js        # 发布包编辑器
-│   │   ├── CalendarView.js         # 发布日历
-│   │   ├── StatsDashboard.js       # 数据看板
+│   │   ├── KanbanBoard.js          # 看板视图（任务卡片状态墙）
+│   │   ├── ReviewMode.js           # 审核模式（素材+文案）
+│   │   ├── TasksView.js            # 任务列表
+│   │   ├── PublishView.js          # 发布记录
+│   │   ├── CopywritingView.js      # 图文库
+│   │   ├── PlatformConfig.js       # 平台配置
+│   │   ├── CalendarView.js         # 日历（成果统计）
 │   │   ├── MediaCard.js            # 素材卡片组件
-│   │   ├── ThemeSelector.js        # 主题选择器
-│   │   └── PlatformSelector.js     # 平台选择器
+│   │   └── ThemeSelector.js        # 主题选择器
 │   └── utils/
 │       ├── dom.js                  # DOM 工具
 │       ├── format.js               # 格式化（日期、大小）

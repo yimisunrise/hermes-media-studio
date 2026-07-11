@@ -27,24 +27,24 @@ src/
 │   ├── state.js        # AppState — 内存事件发射器（SSOT 是工作空间文件）
 │   ├── router.js       # 基于 hash 的路由（#kanban, #review 等）
 │   ├── sidebar.js      # 注入 Rail 按钮 + 切换宿主面板
-│   ├── KanbanBoard.js
-│   ├── ReviewMode.js
-│   ├── PackageEditor.js
-│   ├── CalendarView.js
-│   ├── StatsDashboard.js
-│   ├── GenerationConsole.js
-│   ├── ThemeStrategy.js
-│   ├── MediaArchive.js
+│   ├── KanbanBoard.js  # 任务看板（任务卡片状态墙，由 task-lifecycle.json 驱动列渲染）
+│   ├── ReviewMode.js   # 审批（支持素材任务和文案任务的不同渲染）
+│   ├── TasksView.js    # 任务列表（CRUD + 手工状态变更 + Agent 模式）
+│   ├── PublishView.js  # 发布表单 + 发布记录清单
+│   ├── CopywritingView.js # 图文库（Markdown + meta sidecar 存储）
+│   ├── PlatformConfig.js  # 平台配置（CRUD + 自定义发布类型）
+│   ├── CalendarView.js # 日历（统计每日素材/图文成果数量）
+│   ├── MediaArchive.js # 素材库
 │   ├── components/
 │   │   ├── MediaCard.js
 │   │   ├── MediaDetail.js
-│   │   ├── ThemeSelector.js
-│   │   └── PlatformSelector.js
+│   │   └── ThemeSelector.js
 │   └── utils/
 │       ├── dom.js       # createElement, debounce, throttle, empty 等
 │       ├── format.js    # 日期、数字、文件大小、slug 格式化
 │       ├── meta.js      # .meta.json sidecar 读写/状态变更
-│       └── search.js    # 通过 .index/ 分片实现索引搜索
+│       ├── search.js    # 通过 .index/ 分片实现索引搜索
+│       └── stateMachine.js # 配置驱动状态机（读取 task-lifecycle.json）
 ├── assets/logo.svg
 └── scripts/
     ├── install.sh       # 通过 mkdir -p 创建工作空间目录
@@ -86,7 +86,7 @@ this.modules.kanban = new KanbanBoard({ api: this.api, state: this.state });
 - 便捷方法：`setFilter()`、`setAssets()`、`toggleAssetSelection()`
 
 ### 路由器
-- 基于 hash：`#kanban`、`#review`、`#package-editor`、`#calendar`、`#dashboard`、`#generation`、`#themes`、`#archive`、`#init`
+- 基于 hash：`#kanban`、`#review`、`#tasks`、`#publish`、`#copywriting`、`#platforms`、`#calendar`、`#archive`、`#init`
 - 路由器注册视图函数；每个函数接收从 hash `#view/param1/param2` 解析的参数
 
 ### 侧边栏集成
@@ -99,12 +99,22 @@ this.modules.kanban = new KanbanBoard({ api: this.api, state: this.state });
 ```
 configs/themes/<name>/theme.json + prompt-template.md
 configs/platforms/<name>.json
-configs/workflows/<name>.json
+configs/workflows/<name>.json          # 也包含 task-lifecycle.json 状态机定义
 assets/YYYY/MM/DD/<theme>__HHmmss__<seq>.ext (+ .meta.json sidecar)
+tasks/<uuid>/                          # 创作任务（.meta.json + brief.md）
+├── .meta.json                         # 任务类型、模式、状态、状态流转历史
+├── brief.md                           # 创作简报/提示词
+copywriting/YYYY/MM/<uuid>/            # 图文成果（Markdown + meta sidecar）
+├── content.md                         # Markdown 图文内容
+└── .meta.json                         # 元数据（标题、类型、状态、发布记录）
 pipeline/{01-generating,02-pending-review,03-approved,04-scheduled,05-published}/*.ref
 archive/<theme>/YYYY/MM/
 .trash/
-.index/manifest.json + pipeline.json + YYYY/MM/assets.json
+.index/
+├── manifest.json
+├── pipeline.json
+├── YYYY/MM/assets.json                # 素材分片索引
+└── YYYY/MM/copywriting.json           # 图文分片索引
 ```
 
 ### 元数据（`.meta.json` sidecar）
@@ -117,6 +127,23 @@ archive/<theme>/YYYY/MM/
 - `changeStatus(api, path, newStatus, note)` 更新 meta 并同步流水线索引
 - 物理文件从不移动——状态仅记录在 meta 中
 - 流水线阶段通过 `.ref` 文件和 `.index/pipeline.json` 追踪
+
+### 配置驱动状态机（`configs/workflows/task-lifecycle.json`）
+任务系统使用配置驱动状态机，`task-lifecycle.json` 定义每个任务类型的：
+- `states`：所有状态列表
+- `kanban_states`：看板可见状态
+- `transitions`：合法状态流转（从某状态可到达的下一个状态）
+- `color`：任务卡片颜色
+```json
+{ "media": { "label": "素材任务", "states": ["initialized", "generating", "pending_review", "approved", "rejected"],
+  "kanban_states": ["generating", "pending_review", "approved"],
+  "transitions": { "initialized": ["generating"], "generating": ["pending_review"], "pending_review": ["approved", "rejected"] },
+  "final_states": ["approved", "rejected"], "color": "#4a90d9" } }
+```
+- 前端 UI 自动根据配置渲染看板列和状态操作按钮
+- 新增任务类型只需添加配置文件，无需改代码
+- `src/modules/utils/stateMachine.js` 负责解析配置和校验流转合法性
+- 配置不存在时使用内置默认值兜底
 
 ## 重要注意事项
 
@@ -147,4 +174,4 @@ archive/<theme>/YYYY/MM/
 | 初始化工作空间 | `src/scripts/install.sh` |
 | 卸载 | `src/scripts/uninstall.sh`（需确认，有破坏性） |
 | 更新 | `src/scripts/update.sh`（git pull） |
-| 运行时 hash 路由 | `#kanban`、`#review`、`#package-editor`、`#calendar`、`#dashboard`、`#generation`、`#themes`、`#archive`、`#init` |
+| 运行时 hash 路由 | `#kanban`、`#review`、`#tasks`、`#publish`、`#copywriting`、`#platforms`、`#calendar`、`#archive`、`#init` |
