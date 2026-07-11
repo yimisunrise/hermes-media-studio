@@ -224,16 +224,10 @@
 }
 
 .ms-rail-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
   border: none;
-  border-radius: 6px;
   background: transparent;
   color: var(--ms-text-secondary, var(--muted, #888));
   cursor: pointer;
-  font-size: 13px;
   font-family: inherit;
   transition: background 0.15s ease, color 0.15s ease;
   text-decoration: none;
