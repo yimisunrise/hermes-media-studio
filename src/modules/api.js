@@ -99,13 +99,35 @@ class WorkspaceAPI {
     return relPath ? `media-studio/${relPath}` : 'media-studio';
   }
 
+  /**
+   * Build asset path under assets/{YYYY}/{MM}/{DD}/{theme}__{HHmmss}__{seq}.{ext}
+   * @param {string} theme - theme name
+   * @param {string} timestamp - ISO timestamp or Date string
+   * @param {number|string} seq - sequence number
+   * @param {string} ext - file extension (without dot)
+   * @returns {string} relative path under media-studio/
+   */
+  _buildAssetPath(theme, timestamp, seq, ext) {
+    const d = new Date(timestamp);
+    const yyyy = String(d.getFullYear());
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    const hhmmss = `${hh}${min}${ss}`;
+    const seqStr = String(seq).padStart(3, '0');
+    return `assets/${yyyy}/${mm}/${dd}/${theme}__${hhmmss}__${seqStr}.${ext}`;
+  }
+
   /** Build GET URL with session_id and path */
   _getUrl(endpoint, relPath) {
     const fullPath = this._buildPath(relPath);
     return `${ENDPOINT_MAP[endpoint]}?session_id=${encodeURIComponent(this.sessionId)}&path=${encodeURIComponent(fullPath)}`;
   }
 
-  /** Verify API connectivity with a simple list call */
+  /** Verify API connectivity with a simple list call.
+   *  After connectivity check, also probes .index/ to verify new structure. */
   async probe() {
     if (!this.sessionId) {
       this.ready = false;
@@ -115,6 +137,12 @@ class WorkspaceAPI {
       const url = `${ENDPOINT_MAP.list}?session_id=${encodeURIComponent(this.sessionId)}&path=.`;
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
       this.ready = res.ok;
+      // Verify new directory structure is accessible
+      try {
+        await this.tree('.index');
+      } catch {
+        // .index/ may not exist yet (uninitialized workspace)
+      }
       return {};
     } catch {
       this.ready = false;
@@ -244,69 +272,97 @@ class WorkspaceAPI {
     }
   }
 
-  /** Check if workspace structure is initialized */
+  /** Attempt to refresh the API session when it becomes stale.
+   *  Creates a new standalone session via POST /api/session/new and
+   *  updates internal _sessionId / _workspacePath on success.
+   *  @returns {Promise<boolean>} true if a new session was created */
+  async tryRefreshSession() {
+    try {
+      return await this._createStandaloneSession();
+    } catch (e) {
+      console.warn('[MediaStudio] session refresh failed:', e);
+      return false;
+    }
+  }
+
+  /** Check if workspace structure is initialized.
+   *  Probes for .index/manifest.json as the canonical initialization marker.
+   *  If the check fails with 404 (likely stale session), attempts a
+   *  one-shot session refresh and retries exactly once. */
   async checkInitialized() {
     try {
-      await this.tree('pipeline/01-generating');
+      await this.read('.index/manifest.json');
       return true;
-    } catch {
+    } catch (err) {
+      if (err.message?.includes('404')) {
+        const refreshed = await this.tryRefreshSession();
+        if (refreshed) {
+          try {
+            await this.read('.index/manifest.json');
+            return true;
+          } catch {
+            return false;
+          }
+        }
+      }
       return false;
     }
   }
 
   /**
-   * Load kanban data aggregated from all pipeline stages.
+   * Load kanban data from .index/pipeline.json.
    * @param {Object} filter - { theme?, dateFrom?, dateTo?, search? }
    * @returns {Object} { generating, pending, approved, scheduled }
    */
   async loadKanbanData(filter = {}) {
-    const stages = [
-      { dir: 'pipeline/01-generating', key: 'generating' },
-      { dir: 'pipeline/02-pending-review', key: 'pending' },
-      { dir: 'pipeline/03-approved', key: 'approved' },
-      { dir: 'pipeline/04-scheduled', key: 'scheduled' }
-    ];
-
     const kanban = { generating: [], pending: [], approved: [], scheduled: [] };
 
-    for (const stage of stages) {
-      try {
-        const items = await this.tree(stage.dir);
-        const entries = this._normalizeTree(items);
+    try {
+      const pipelineIndex = await this.readJSON('.index/pipeline.json');
+      const items = pipelineIndex.pipeline || [];
 
-        for (const entry of entries) {
-          if (entry.name.endsWith('.meta.json')) continue;
-          if (entry.name.endsWith('.md')) continue;
+      for (const item of items) {
+        const stageKey = this._pipelineStageKey(item.status);
+        if (!stageKey || !kanban[stageKey]) continue;
 
-          let meta = null;
-          try {
-            meta = await this.readJSON(`${stage.dir}/${entry.name}.meta.json`);
-          } catch {
-            continue;
-          }
-
-          if (filter.theme && meta.theme !== filter.theme) continue;
-          if (filter.dateFrom && new Date(meta.created_at) < new Date(filter.dateFrom)) continue;
-          if (filter.dateTo && new Date(meta.created_at) > new Date(filter.dateTo)) continue;
-          if (filter.search) {
-            const q = filter.search.toLowerCase();
-            const matchesTheme = meta.theme && meta.theme.toLowerCase().includes(q);
-            const matchesPrompt = meta.generation?.prompt?.toLowerCase().includes(q);
-            const matchesTags = meta.review?.tags?.some(t => t.toLowerCase().includes(q));
-            const matchesFilename = entry.name?.toLowerCase().includes(q);
-            if (!matchesTheme && !matchesPrompt && !matchesTags && !matchesFilename) continue;
-          }
-
-          kanban[stage.key].push({
-            path: `${stage.dir}/${entry.name}`,
-            name: entry.name,
-            meta
-          });
+        if (filter.theme && item.theme !== filter.theme) continue;
+        if (filter.dateFrom && new Date(item.created_at) < new Date(filter.dateFrom)) continue;
+        if (filter.dateTo && new Date(item.created_at) > new Date(filter.dateTo)) continue;
+        if (filter.search) {
+          const q = filter.search.toLowerCase();
+          const matchesTheme = item.theme && item.theme.toLowerCase().includes(q);
+          const matchesFilename = item.id?.toLowerCase().includes(q);
+          if (!matchesTheme && !matchesFilename) continue;
         }
-      } catch { /* stage may not exist */ }
-    }
+
+        let meta = null;
+        try {
+          meta = await this.readJSON(`${item.path}.meta.json`);
+        } catch {
+          // meta may not exist yet
+        }
+
+        kanban[stageKey].push({
+          path: item.path,
+          name: item.path.split('/').pop(),
+          meta
+        });
+      }
+    } catch { /* pipeline index may not exist yet */ }
 
     return kanban;
+  }
+
+  /** Map pipeline status string to kanban key */
+  _pipelineStageKey(status) {
+    const map = {
+      'generating': 'generating',
+      'pending-review': 'pending',
+      'approved': 'approved',
+      'scheduled': 'scheduled',
+      'published': 'published'
+    };
+    return map[status] || null;
   }
 
   /** Aggregate stats from all published assets */
@@ -361,46 +417,179 @@ class WorkspaceAPI {
     };
   }
 
-  /** Walk archive/YYYY/MM/ and collect all assets with metadata */
+  /** Walk archive/{theme}/{YYYY}/{MM}/ and collect all assets with metadata.
+   *  Discovers themes from configs/themes/ first, then walks each theme's archive. */
   async _walkArchive() {
     const results = [];
+    let themes = [];
+
+    // Discover themes from configs/themes/
     try {
-      const years = await this.tree('archive');
-      const yearEntries = this._normalizeTree(years);
+      const themeDirs = await this.tree('configs/themes');
+      const themeEntries = this._normalizeTree(themeDirs);
+      themes = themeEntries
+        .filter(e => e.name && !e.name.startsWith('.'))
+        .map(e => e.name);
+    } catch { /* configs/themes may not exist */ }
 
-      for (const year of yearEntries) {
-        if (!year.name || !/^\d{4}$/.test(year.name)) continue;
-        try {
-          const months = await this.tree(`archive/${year.name}`);
-          const monthEntries = this._normalizeTree(months);
+    // Fallback: if no themes found, try walking archive/ directly for any theme dirs
+    if (themes.length === 0) {
+      try {
+        const topDirs = await this.tree('archive');
+        const topEntries = this._normalizeTree(topDirs);
+        themes = topEntries
+          .filter(e => e.name && !e.name.startsWith('.'))
+          .map(e => e.name);
+      } catch { /* archive may be empty */ }
+    }
 
-          for (const month of monthEntries) {
-            if (!month.name || !/^\d{2}$/.test(month.name)) continue;
-            try {
-              const files = await this.tree(`archive/${year.name}/${month.name}`);
-              const fileEntries = this._normalizeTree(files);
+    for (const theme of themes) {
+      try {
+        const years = await this.tree(`archive/${theme}`);
+        const yearEntries = this._normalizeTree(years);
 
-              for (const file of fileEntries) {
-                if (file.name.endsWith('.meta.json')) continue;
-                if (!file.name.match(/\.(png|jpg|jpeg|gif|webp|mp4)$/i)) continue;
+        for (const year of yearEntries) {
+          if (!year.name || !/^\d{4}$/.test(year.name)) continue;
+          try {
+            const months = await this.tree(`archive/${theme}/${year.name}`);
+            const monthEntries = this._normalizeTree(months);
 
-                let meta = null;
-                try {
-                  meta = await this.readJSON(`archive/${year.name}/${month.name}/${file.name}.meta.json`);
-                } catch { /* no meta */ }
+            for (const month of monthEntries) {
+              if (!month.name || !/^\d{2}$/.test(month.name)) continue;
+              try {
+                const files = await this.tree(`archive/${theme}/${year.name}/${month.name}`);
+                const fileEntries = this._normalizeTree(files);
 
-                results.push({
-                  path: `archive/${year.name}/${month.name}/${file.name}`,
-                  name: file.name,
-                  meta
-                });
-              }
-            } catch { /* skip month */ }
-          }
-        } catch { /* skip year */ }
-      }
-    } catch { /* archive may be empty */ }
+                for (const file of fileEntries) {
+                  if (file.name.endsWith('.meta.json')) continue;
+                  if (!file.name.match(/\.(png|jpg|jpeg|gif|webp|mp4)$/i)) continue;
+
+                  let meta = null;
+                  try {
+                    meta = await this.readJSON(`archive/${theme}/${year.name}/${month.name}/${file.name}.meta.json`);
+                  } catch { /* no meta */ }
+
+                  results.push({
+                    path: `archive/${theme}/${year.name}/${month.name}/${file.name}`,
+                    name: file.name,
+                    meta
+                  });
+                }
+              } catch { /* skip month */ }
+            }
+          } catch { /* skip year */ }
+        }
+      } catch { /* skip theme */ }
+    }
+
     return results;
+  }
+
+  /** Write a .ref file into a pipeline stage directory.
+   *  @param {string} stage - pipeline stage name (e.g. '01-generating', '02-pending-review')
+   *  @param {string} assetPath - relative path to the asset (e.g. 'assets/2026/07/11/...')
+   *  @returns {Promise<Object>} API response */
+  async writePipelineRef(stage, assetPath) {
+    const filename = assetPath.split('/').pop();
+    const refPath = `pipeline/${stage}/${filename}.ref`;
+    const content = JSON.stringify({ asset: assetPath }, null, 2);
+    return this.write(refPath, content);
+  }
+
+  /** Remove a .ref file from a pipeline stage directory.
+   *  @param {string} stage - pipeline stage name
+   *  @param {string} assetPath - relative path to the asset
+   *  @returns {Promise<boolean>} true if removed, false if not found */
+  async removePipelineRef(stage, assetPath) {
+    const filename = assetPath.split('/').pop();
+    const refPath = `pipeline/${stage}/${filename}.ref`;
+    try {
+      await this.delete(refPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Read all .ref files from a pipeline stage and resolve to asset paths.
+   *  @param {string} stage - pipeline stage name
+   *  @returns {Promise<string[]>} array of resolved asset paths */
+  async readPipelineRefs(stage) {
+    const results = [];
+    try {
+      const entries = await this.tree(`pipeline/${stage}`);
+      const files = this._normalizeTree(entries);
+
+      for (const file of files) {
+        if (!file.name.endsWith('.ref')) continue;
+        try {
+          const content = await this.read(`pipeline/${stage}/${file.name}`);
+          const parsed = JSON.parse(content);
+          if (parsed.asset) {
+            results.push(parsed.asset);
+          }
+        } catch { /* skip unparseable ref */ }
+      }
+    } catch { /* stage may not exist */ }
+
+    return results;
+  }
+
+  /** Read the pipeline index from .index/pipeline.json.
+   *  @returns {Promise<Object>} { pipeline: [...] } or empty object */
+  async readPipelineIndex() {
+    try {
+      return await this.readJSON('.index/pipeline.json');
+    } catch {
+      return { pipeline: [] };
+    }
+  }
+
+  /** Write the pipeline index to .index/pipeline.json.
+   *  @param {Object} data - index data with pipeline array */
+  async writePipelineIndex(data) {
+    await this.writeJSON('.index/pipeline.json', data);
+  }
+
+  /** Read a shard file from .index/{YYYY}/{MM}/assets.json.
+   *  @param {number|string} year
+   *  @param {number|string} month
+   *  @returns {Promise<Object>} shard data or empty object */
+  async readShard(year, month) {
+    const yyyy = String(year);
+    const mm = String(month).padStart(2, '0');
+    try {
+      return await this.readJSON(`.index/${yyyy}/${mm}/assets.json`);
+    } catch {
+      return { assets: [] };
+    }
+  }
+
+  /** Write a shard file to .index/{YYYY}/{MM}/assets.json.
+   *  @param {number|string} year
+   *  @param {number|string} month
+   *  @param {Object} data - shard data */
+  async writeShard(year, month, data) {
+    const yyyy = String(year);
+    const mm = String(month).padStart(2, '0');
+    await this.mkdir(`.index/${yyyy}/${mm}`);
+    await this.writeJSON(`.index/${yyyy}/${mm}/assets.json`, data);
+  }
+
+  /** Read the index manifest from .index/manifest.json.
+   *  @returns {Promise<Object>} manifest data or empty object */
+  async readIndexManifest() {
+    try {
+      return await this.readJSON('.index/manifest.json');
+    } catch {
+      return {};
+    }
+  }
+
+  /** Write the index manifest to .index/manifest.json.
+   *  @param {Object} data - manifest data */
+  async writeIndexManifest(data) {
+    await this.writeJSON('.index/manifest.json', data);
   }
 
   /** Normalize tree response to array of { name, path, type, size? } */
