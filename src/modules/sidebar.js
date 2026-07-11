@@ -104,10 +104,40 @@ class SidebarManager {
   _activate() {
     this._active = true;
 
+    // ── Save host state for restore ──
+    this._prevHostPanel = null;
+    const activeHostTab = document.querySelector('.rail .nav-tab.active[data-panel]');
+    if (activeHostTab && activeHostTab.dataset.panel !== 'media-studio') {
+      this._prevHostPanel = activeHostTab.dataset.panel;
+    }
+
+    const titleEl = document.getElementById('appTitlebarTitle');
+    const subEl = document.getElementById('appTitlebarSub');
+    this._prevTitle = titleEl ? titleEl.textContent : '';
+    this._prevSub = subEl ? subEl.textContent : '';
+    if (titleEl) titleEl.textContent = 'Media Studio';
+    if (subEl) subEl.textContent = '自媒体运营助手';
+
+    // ── Activate our rail buttons ──
     document.querySelectorAll('.ms-rail-btn').forEach(el => {
       el.classList.add(SELECTORS.activeClass);
     });
 
+    // ── Deactivate ALL host rail buttons ──
+    // Host uses .nav-tab.active on rail buttons; clear them so none looks selected.
+    document.querySelectorAll('.rail .nav-tab.active[data-panel]').forEach(el => {
+      if (el.dataset.panel !== 'media-studio') {
+        el.classList.remove(SELECTORS.activeClass);
+      }
+    });
+
+    // ── Hide host sidebar ──
+    const sidebar = document.querySelector('aside.sidebar');
+    if (sidebar) {
+      sidebar.style.display = 'none';
+    }
+
+    // ── Hide host main children, show our app ──
     const main = document.querySelector(SELECTORS.main);
     if (main) {
       main.querySelectorAll(':scope > *').forEach(child => {
@@ -128,10 +158,18 @@ class SidebarManager {
   _deactivate() {
     this._active = false;
 
+    // ── Deactivate our rail buttons ──
     document.querySelectorAll('.ms-rail-btn').forEach(el => {
       el.classList.remove(SELECTORS.activeClass);
     });
 
+    // ── Restore host sidebar ──
+    const sidebar = document.querySelector('aside.sidebar');
+    if (sidebar) {
+      sidebar.style.display = '';
+    }
+
+    // ── Restore host main children, hide our app ──
     const main = document.querySelector(SELECTORS.main);
     if (main) {
       main.querySelectorAll(':scope > *').forEach(child => {
@@ -145,6 +183,24 @@ class SidebarManager {
     if (app) {
       app.style.display = 'none';
     }
+
+    // ── Restore host panel state ──
+    if (this._prevHostPanel) {
+      const tab = document.querySelector(`.rail .nav-tab[data-panel="${this._prevHostPanel}"]`);
+      if (tab) tab.classList.add(SELECTORS.activeClass);
+      if (typeof window.switchPanel === 'function') {
+        window.switchPanel(this._prevHostPanel);
+      }
+      this._prevHostPanel = null;
+    }
+
+    // ── Restore titlebar ──
+    const titleEl = document.getElementById('appTitlebarTitle');
+    const subEl = document.getElementById('appTitlebarSub');
+    if (titleEl && this._prevTitle !== undefined) titleEl.textContent = this._prevTitle;
+    if (subEl && this._prevSub !== undefined) subEl.textContent = this._prevSub;
+    this._prevTitle = undefined;
+    this._prevSub = undefined;
 
     // Clear the hash so the URL doesn't show a stale Media Studio route
     history.replaceState(null, '', window.location.pathname + window.location.search);

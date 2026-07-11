@@ -240,17 +240,15 @@
 }
 
 .ms-rail-btn:hover {
-  background: rgba(128, 128, 128, 0.12);
   color: var(--ms-text-primary, var(--text, #e0e0e0));
 }
 
 .ms-rail-btn.active {
-  background: var(--ms-accent, var(--accent, #e94560));
-  color: #fff;
+  color: var(--accent, #e94560);
 }
 
 .ms-rail-btn.active:hover {
-  background: var(--ms-accent-hover, var(--accent-hover, #ff6b81));
+  color: var(--ms-accent-hover, var(--accent-hover, #ff6b81));
 }
 
 /* === Buttons === */
