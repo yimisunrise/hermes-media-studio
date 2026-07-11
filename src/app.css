@@ -188,31 +188,143 @@
   padding: 24px;
 }
 
-/* === Init Tip (non-blocking workspace init prompt) === */
-.ms-init-tip {
+/* === Init View (full-page workspace initialization) === */
+.ms-init-view {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 0 24px;
+}
+
+.ms-init-tutorial h2 {
+  font-size: 24px;
+  margin: 0 0 16px;
+  color: var(--ms-text-primary);
+}
+
+.ms-init-tutorial p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ms-text-secondary);
+  margin: 0 0 12px;
+}
+
+.ms-init-path {
+  background: var(--ms-bg-primary);
+  border-radius: var(--ms-radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  font-family: var(--ms-font-mono);
+  color: var(--ms-text-primary);
+  word-break: break-all;
+}
+
+.ms-init-dir-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+  font-size: 13px;
+}
+
+.ms-init-dir-list li {
+  padding: 6px 0;
+  color: var(--ms-text-secondary);
+}
+
+.ms-init-dir-list li::before {
+  content: '📁 ';
+  font-size: 12px;
+}
+
+.ms-init-dir-heading {
+  font-size: 14px;
+  color: var(--ms-text-secondary);
+  margin: 16px 0 8px;
+}
+
+.ms-init-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  justify-content: center;
+  margin: 32px 0;
+}
+
+.ms-init-button {
+  padding: 12px 36px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ms-init-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ms-init-progress {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--ms-bg-primary);
+  border-radius: var(--ms-radius-sm);
+  font-size: 13px;
+  color: var(--ms-text-secondary);
+  text-align: center;
+}
+
+.ms-init-completed {
+  text-align: center;
+  padding: 48px 0 24px;
+}
+
+.ms-init-completed-icon {
+  font-size: 48px;
   margin-bottom: 16px;
 }
 
-.ms-init-tip-icon {
-  font-size: 24px;
-  flex-shrink: 0;
+.ms-init-completed h2 {
+  font-size: 22px;
+  margin: 0 0 12px;
+  color: var(--ms-success);
 }
 
-.ms-init-tip-text {
+.ms-init-completed p {
+  font-size: 14px;
+  color: var(--ms-text-secondary);
+  margin: 0 0 8px;
+}
+
+/* === Warning Banner === */
+.ms-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255, 152, 0, 0.12);
+  border: 1px solid var(--ms-warning);
+  border-radius: var(--ms-radius);
+  margin-bottom: 16px;
+}
+
+.ms-warning-banner-text {
   flex: 1;
   font-size: 13px;
-  color: var(--text);
+  color: var(--ms-warning);
 }
 
-.ms-init-tip-btn {
+.ms-warning-banner-dismiss {
   flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--ms-warning);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  opacity: 0.7;
+}
+
+.ms-warning-banner-dismiss:hover {
+  opacity: 1;
 }
 
 /* === Sidebar Integration (WebUI .rail injection) === */
@@ -991,92 +1103,7 @@
   margin-bottom: 12px;
 }
 
-/* === Setup Dialog === */
-.ms-setup-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ms-setup-dialog {
-  background: var(--ms-bg-secondary);
-  border: 1px solid var(--ms-border);
-  border-radius: var(--ms-radius);
-  padding: 28px 32px;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: var(--ms-shadow-lg);
-}
-
-.ms-setup-title {
-  margin: 0 0 8px;
-  font-size: 20px;
-  color: var(--ms-accent);
-}
-
-.ms-setup-desc {
-  font-size: 14px;
-  color: var(--ms-text-secondary);
-  margin: 0 0 16px;
-}
-
-.ms-setup-path {
-  background: var(--ms-bg-primary);
-  border-radius: var(--ms-radius-sm);
-  padding: 10px 12px;
-  margin-bottom: 16px;
-  font-size: 13px;
-  font-family: var(--ms-font-mono);
-  word-break: break-all;
-}
-
-.ms-setup-path-label {
-  color: var(--ms-text-secondary);
-}
-
-.ms-setup-path-value {
-  color: var(--ms-text-primary);
-}
-
-.ms-setup-dir-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 20px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 16px;
-  font-size: 13px;
-}
-
-.ms-setup-dir-list li {
-  padding: 4px 0;
-  color: var(--ms-text-secondary);
-}
-
-.ms-setup-dir-list li::before {
-  content: '📁 ';
-  font-size: 12px;
-}
-
-.ms-setup-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.ms-setup-progress {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: var(--ms-bg-primary);
-  border-radius: var(--ms-radius-sm);
-  font-size: 13px;
-  color: var(--ms-text-secondary);
-}
-
+/* === Init Progress (shared between init view and _createWorkspaceDirectories) === */
 .ms-setup-success {
   color: var(--ms-success);
 }

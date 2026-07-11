@@ -14,16 +14,18 @@ import { MediaArchive } from './modules/MediaArchive.js';
 import { show, hide, empty } from './modules/utils/dom.js';
 
 const DIRS_TO_CREATE = [
+  'configs/themes',
+  'configs/platforms',
+  'configs/workflows',
+  'assets',
   'pipeline/01-generating',
   'pipeline/02-pending-review',
   'pipeline/03-approved',
   'pipeline/04-scheduled',
   'pipeline/05-published',
-  'themes',
-  'platforms',
-  'workflows',
   'archive',
-  '.trash'
+  '.trash',
+  '.index'
 ];
 
 /* ── Inline SVG icons (no emoji, reliably renderable) ── */
@@ -52,6 +54,8 @@ const ICONS = {
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-1 10H3L2 3z"/><path d="M6 7h4"/></svg>',
   themes:
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12 4 4 0 0 0 0-8"/></svg>',
+  init:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8a6 6 0 0 1 6-6 6 6 0 0 1 5.3 3"/><path d="M14 2v4h-4"/><path d="M14 8a6 6 0 0 1-6 6 6 6 0 0 1-5.3-3"/><path d="M2 14v-4h4"/></svg>',
 };
 
 const MENU_GROUPS = [
@@ -88,7 +92,8 @@ const MENU_GROUPS = [
     label: '定制化',
     icon: ICONS.customize,
     items: [
-      { hash: 'themes', label: '主题', icon: ICONS.themes }
+      { hash: 'themes', label: '主题', icon: ICONS.themes },
+      { hash: 'init', label: '初始化', icon: ICONS.init }
     ]
   }
 ];
@@ -130,20 +135,19 @@ class MediaStudioApp {
         return;
       }
 
-      // Non-blocking: check initialization but don't block the UI
       this._workspaceReady = await this.api.checkInitialized();
-      if (!this._workspaceReady) {
-        this._showInitTip(viewContainer);
-      }
     } catch (e) {
       this._showError('初始化失败: ' + e.message);
       return;
     }
 
-
     this._initModules(viewContainer);
     this.router.init();
     this._initSidebar();
+
+    if (!this._workspaceReady) {
+      this.router.navigate('init');
+    }
   }
 
   _createPanel() {
@@ -215,6 +219,10 @@ class MediaStudioApp {
         setTimeout(() => {
           empty(viewContainer);
           module.render(viewContainer, params);
+          // Show warning banner on non-init views when workspace not ready
+          if (viewName !== 'init' && !this._workspaceReady) {
+            this._renderWarningBanner(viewContainer);
+          }
         }, 0);
       }
     };
@@ -238,6 +246,13 @@ class MediaStudioApp {
     this.router.register('generation', renderInContainer('generation'));
     this.router.register('themes', renderInContainer('themes'));
     this.router.register('archive', renderInContainer('archive'));
+
+    // Init view — no module class, rendered directly
+    this.router.register('init', (params) => {
+      this._updateNavActive('init');
+      empty(viewContainer);
+      this._renderInitView(viewContainer);
+    });
   }
 
   _updateNavActive(viewName) {
@@ -275,100 +290,86 @@ class MediaStudioApp {
     });
   }
 
-  /** Show setup dialog prompting user to initialize workspace */
-  /** Show a non-blocking init tip in the view area instead of blocking the UI */
-  _showInitTip(container) {
+  /** Render the full-page init view */
+  _renderInitView(container) {
+    if (this._workspaceReady) {
+      container.innerHTML = `
+        <div class="ms-init-view">
+          <div class="ms-init-completed">
+            <div class="ms-init-completed-icon">✅</div>
+            <h2>工作空间初始化已完成</h2>
+            <p>Media Studio 工作空间位于：</p>
+            <div class="ms-init-path">${this.api.workspacePath || '未知'}</div>
+          </div>
+          <p class="ms-init-dir-heading">目录结构：</p>
+          <ul class="ms-init-dir-list">
+            ${DIRS_TO_CREATE.map(d => `<li>${d}/</li>`).join('')}
+          </ul>
+        </div>
+      `;
+      return;
+    }
+
     container.innerHTML = `
-      <div class="ms-init-tip">
-        <span class="ms-init-tip-icon">🛠️</span>
-        <span class="ms-init-tip-text">工作空间尚未初始化，部分功能不可用。</span>
-        <button class="ms-btn ms-btn-primary ms-init-tip-btn" id="ms-init-now-btn">立即初始化</button>
-        <button class="ms-btn ms-init-tip-btn" id="ms-init-later-btn">稍后</button>
+      <div class="ms-init-view">
+        <div class="ms-init-tutorial">
+          <h2>🎬 欢迎使用 Media Studio</h2>
+          <p>Media Studio 是自媒体内容生产驾驶舱，需要在您的工作空间中创建目录结构来管理素材和流水线。</p>
+          <p>工作空间采用四层结构：<strong>configs</strong>（配置）、<strong>assets</strong>（素材）、<strong>pipeline</strong>（流水线）、<strong>archive</strong>（归档）。</p>
+          <p>工作空间路径：</p>
+          <div class="ms-init-path">${this.api.workspacePath || '未知'}</div>
+          <p>将创建以下目录：</p>
+        </div>
+        <ul class="ms-init-dir-list">
+          ${DIRS_TO_CREATE.map(d => `<li>${d}/</li>`).join('')}
+        </ul>
+        <div class="ms-init-actions">
+          <button class="ms-btn ms-btn-primary ms-init-button" id="ms-init-do-btn">初始化工作空间</button>
+        </div>
+        <div class="ms-init-progress" style="display:none;"></div>
       </div>
     `;
 
-    container.querySelector('#ms-init-now-btn').addEventListener('click', async () => {
-      const didInit = await this._showSetupDialog();
-      if (didInit) {
-        this._workspaceReady = true;
-        empty(container);
-        const hash = window.location.hash;
-        if (hash && hash !== '#') {
-          this.router.navigate(hash.slice(1));
-        }
-      }
-    });
+    container.querySelector('#ms-init-do-btn').addEventListener('click', async () => {
+      const btn = container.querySelector('#ms-init-do-btn');
+      const progress = container.querySelector('.ms-init-progress');
+      btn.disabled = true;
+      btn.textContent = '创建中…';
+      progress.style.display = 'block';
 
-    container.querySelector('#ms-init-later-btn').addEventListener('click', () => {
-      empty(container);
+      const succeeded = await this._createWorkspaceDirectories(progress);
+
+      if (succeeded) {
+        this._workspaceReady = true;
+        progress.innerHTML = '<span class="ms-setup-success">✅ 目录创建完成。</span>';
+        const banner = this.container.querySelector('.ms-warning-banner');
+        if (banner) banner.remove();
+        setTimeout(() => {
+          this.router.navigate('kanban');
+        }, 500);
+      } else {
+        progress.innerHTML = '<span class="ms-setup-error">❌ 部分目录创建失败，请重试。</span>';
+        btn.disabled = false;
+        btn.textContent = '重试';
+      }
     });
   }
 
-  _showSetupDialog() {
-    return new Promise((resolve) => {
-      const overlay = document.createElement('div');
-      overlay.className = 'ms-setup-overlay';
+  /** Show a dismissible warning banner when navigating away without initializing */
+  _renderWarningBanner(container) {
+    const existing = container.querySelector('.ms-warning-banner');
+    if (existing) existing.remove();
 
-      const dialog = document.createElement('div');
-      dialog.className = 'ms-setup-dialog';
-
-      const wsPath = this.api.workspacePath || '未知';
-
-      dialog.innerHTML = `
-        <h2 class="ms-setup-title">🎬 Media Studio 初始化</h2>
-        <p class="ms-setup-desc">需要在工作空间中创建以下目录结构：</p>
-        <div class="ms-setup-path">
-          <span class="ms-setup-path-label">工作空间：</span>
-          <span class="ms-setup-path-value">${wsPath}/media-studio/</span>
-        </div>
-        <ul class="ms-setup-dir-list">
-          ${DIRS_TO_CREATE.map(d => `<li>${d}/</li>`).join('')}
-        </ul>
-        <div class="ms-setup-actions">
-          <button class="ms-btn" id="ms-setup-cancel">取消</button>
-          <button class="ms-btn ms-btn-primary" id="ms-setup-init">初始化</button>
-        </div>
-        <div class="ms-setup-progress" style="display:none;"></div>
-      `;
-
-      overlay.appendChild(dialog);
-      this.container.appendChild(overlay);
-
-      dialog.querySelector('#ms-setup-cancel').addEventListener('click', () => {
-        this.container.removeChild(overlay);
-        resolve(false);
-      });
-
-      dialog.querySelector('#ms-setup-init').addEventListener('click', async () => {
-        const initBtn = dialog.querySelector('#ms-setup-init');
-        const cancelBtn = dialog.querySelector('#ms-setup-cancel');
-        const progress = dialog.querySelector('.ms-setup-progress');
-        initBtn.disabled = true;
-        cancelBtn.disabled = true;
-        initBtn.textContent = '创建中…';
-        progress.style.display = 'block';
-
-        const succeeded = await this._createWorkspaceDirectories(progress);
-
-        if (succeeded) {
-          progress.innerHTML = '<span class="ms-setup-success">✅ 目录创建完成。</span>';
-          setTimeout(() => {
-            this.container.removeChild(overlay);
-            resolve(true);
-          }, 800);
-        } else {
-          progress.innerHTML = '<span class="ms-setup-error">❌ 部分目录创建失败，请重试。</span>';
-          initBtn.disabled = false;
-          cancelBtn.disabled = false;
-          initBtn.textContent = '重试';
-          cancelBtn.textContent = '跳过';
-          cancelBtn.addEventListener('click', () => {
-            this.container.removeChild(overlay);
-            resolve(false);
-          }, { once: true });
-        }
-      });
+    const banner = document.createElement('div');
+    banner.className = 'ms-warning-banner';
+    banner.innerHTML = `
+      <span class="ms-warning-banner-text">⚠ 工作空间尚未初始化，部分功能不可用。</span>
+      <button class="ms-btn ms-btn-sm ms-warning-banner-dismiss">✕</button>
+    `;
+    banner.querySelector('.ms-warning-banner-dismiss').addEventListener('click', () => {
+      banner.remove();
     });
+    container.insertBefore(banner, container.firstChild);
   }
 
   /** Create workspace directory structure, showing progress */
