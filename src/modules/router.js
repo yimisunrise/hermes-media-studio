@@ -14,9 +14,7 @@ class Router {
 
   init() {
     window.addEventListener('hashchange', this._onHashChange);
-    if (!window.location.hash || window.location.hash === '#') {
-      window.location.hash = '#kanban';
-    } else {
+    if (window.location.hash && window.location.hash !== '#') {
       this._onHashChange();
     }
   }

@@ -42,15 +42,22 @@ class SidebarManager {
 
     const separator = document.createElement('hr');
     separator.className = 'ms-rail-separator';
-    rail.appendChild(separator);
 
     const btn = document.createElement('button');
     btn.className = 'rail-btn ms-rail-btn';
     btn.dataset.panel = 'media-studio';
     btn.title = 'Media Studio \u2014 \u81ea\u5a92\u4f53\u5185\u5bb9\u751f\u4ea7\u6d41\u6c34\u7ebf';
-    btn.innerHTML = '\uD83C\uDFAC <span>Media Studio</span>';
+    btn.innerHTML = '\uD83C\uDFAC';
     btn.addEventListener('click', this._onRailBtnClick);
-    rail.appendChild(btn);
+
+    const controlBtn = rail.querySelector('[data-panel="control-center"], .rail-btn:last-child');
+    if (controlBtn && controlBtn !== btn) {
+      rail.insertBefore(separator, controlBtn);
+      rail.insertBefore(btn, controlBtn);
+    } else {
+      rail.appendChild(separator);
+      rail.appendChild(btn);
+    }
   }
 
   _injectMobile() {
@@ -138,6 +145,9 @@ class SidebarManager {
     if (app) {
       app.style.display = 'none';
     }
+
+    // Clear the hash so the URL doesn't show a stale Media Studio route
+    history.replaceState(null, '', window.location.pathname + window.location.search);
 
     document.dispatchEvent(new CustomEvent('ms:deactivated'));
   }
