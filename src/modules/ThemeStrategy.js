@@ -43,12 +43,12 @@ export class ThemeStrategy {
 
   async _loadThemes() {
     try {
-      const data = await this.api.tree('themes');
+      const data = await this.api.tree('configs/themes');
       const entries = Array.isArray(data) ? data : (data.children || data.files || []);
       this.themes = [];
       for (const entry of entries) {
-        if (entry.type === 'directory' || entry.isDirectory) {
-          const configPath = `themes/${entry.name}/theme.json`;
+        if (entry.type === 'dir' || entry.type === 'directory' || entry.isDirectory) {
+          const configPath = `configs/themes/${entry.name}/theme.json`;
           let config = {};
           try {
             config = await this.api.readJSON(configPath);
@@ -169,9 +169,9 @@ export class ThemeStrategy {
       inputs.forEach(inp => data[inp.dataset.key] = inp.value);
       const themeName = data.name || 'untitled';
       try {
-        await this.api.mkdir(`themes/${themeName}`);
+        await this.api.mkdir(`configs/themes/${themeName}`);
         delete data.name;
-        await this.api.writeJSON(`themes/${themeName}/theme.json`, data);
+        await this.api.writeJSON(`configs/themes/${themeName}/theme.json`, data);
       } catch (e) {
         alert('保存失败: ' + e.message);
         return;
@@ -217,7 +217,7 @@ export class ThemeStrategy {
     document.getElementById('ms-template-save')?.addEventListener('click', async () => {
       const content = document.getElementById('ms-prompt-template')?.value || '';
       try {
-        await this.api.write(`themes/${theme.name}/prompt-template.md`, content);
+        await this.api.write(`configs/themes/${theme.name}/prompt-template.md`, content);
         alert('模板已保存');
         overlay.remove();
       } catch (e) {

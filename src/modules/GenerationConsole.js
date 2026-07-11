@@ -52,18 +52,18 @@ export class GenerationConsole {
 
   async _loadWorkflows() {
     try {
-      const data = await this.api.tree('workflows');
+      const data = await this.api.tree('configs/workflows');
       const entries = Array.isArray(data) ? data : (data.children || data.files || []);
       this.workflows = [];
       for (const entry of entries) {
         if (entry.type === 'file' || !entry.isDirectory) {
           if (entry.name.endsWith('.json')) {
             try {
-              const config = await this.api.readJSON(`workflows/${entry.name}`);
+              const config = await this.api.readJSON(`configs/workflows/${entry.name}`);
               this.workflows.push({
                 name: entry.name.replace('.json', ''),
                 params: config,
-                path: `workflows/${entry.name}`
+                path: `configs/workflows/${entry.name}`
               });
             } catch { /* skip unreadable */ }
           }

@@ -7,13 +7,13 @@ export class PlatformSelector {
 
   async load() {
     try {
-      const data = await this.api.tree('platforms');
+      const data = await this.api.tree('configs/platforms');
       const entries = Array.isArray(data) ? data : (data.children || data.files || []);
       this.platforms = entries
         .filter(e => e.type === 'directory' || e.isDirectory || e.name.endsWith('.json'))
         .map(e => ({
           name: e.name.replace('.json', ''),
-          path: `platforms/${e.name}`
+          path: `configs/platforms/${e.name}`
         }));
     } catch {
       this.platforms = [];
@@ -23,10 +23,10 @@ export class PlatformSelector {
 
   async getPlatformConfig(name) {
     try {
-      return await this.api.readJSON(`platforms/${name}.json`);
+      return await this.api.readJSON(`configs/platforms/${name}.json`);
     } catch {
       try {
-        return await this.api.readJSON(`platforms/${name}/config.json`);
+        return await this.api.readJSON(`configs/platforms/${name}/config.json`);
       } catch {
         return null;
       }

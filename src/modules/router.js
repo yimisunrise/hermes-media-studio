@@ -1,4 +1,4 @@
-const VIEWS = ['kanban', 'review', 'calendar', 'dashboard', 'package-editor', 'generation', 'themes', 'archive'];
+const VIEWS = ['kanban', 'review', 'calendar', 'dashboard', 'package-editor', 'generation', 'themes', 'archive', 'init'];
 
 class Router {
   constructor(state) {

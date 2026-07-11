@@ -9,7 +9,7 @@ export class ThemeSelector {
 
   async load() {
     try {
-      const data = await this.api.tree('themes');
+      const data = await this.api.tree('configs/themes');
       const entries = Array.isArray(data) ? data : (data.children || data.files || []);
       this.themes = entries
         .filter(e => e.type === 'directory' || e.isDirectory)
