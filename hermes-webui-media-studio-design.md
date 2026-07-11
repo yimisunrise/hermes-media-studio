@@ -39,7 +39,7 @@
 ### 2.1 功能需求
 
 #### FR-01 工作流管理
-- 在扩展中浏览 `workflows/` 目录下的 ComfyUI API JSON 文件
+- 在扩展中浏览 `configs/workflows/` 目录下的 ComfyUI API JSON 文件
 - 预览工作流参数（模型、分辨率、采样步数等）
 - 一键触发 Agent 批量生成素材（指定主题、数量、变体策略）
 
@@ -131,70 +131,40 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Workspace File System                      │
 │  ~/workspace/media-studio/                                      │
-│  ├── workflows/  ├── pipeline/  ├── themes/  ├── archive/      │
+│  ├── configs/  ├── assets/  ├── pipeline/  ├── archive/      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### 3.2 目录结构（Workspace 约定）
 
 ```
-~/workspace/media-studio/
-│
-├── README.md                        # 项目说明
-│
-├── workflows/                       # ComfyUI API JSON 工作流库
-│   ├── 手机壁纸-竖版.json
-│   ├── 手机壁纸-横版.json
-│   ├── 电脑壁纸-横版.json
-│   ├── 童话仙境-文生图.json
-│   └── 童话仙境-文生视频.json
-│
-├── pipeline/                        # 生产流水线（看板数据源）
-│   ├── 01-generating/               # 生成中（Agent 正在跑）
-│   │   └── (临时素材 + .meta.json)
-│   ├── 02-pending-review/           # 待审核池（所有主题混排）
-│   │   └── (素材 + .meta.json)
-│   ├── 03-approved/                 # 已审核素材库
-│   │   └── (素材 + .meta.json)
-│   ├── 04-scheduled/                # 发布日历（按日期子目录）
+media-studio/
+├── configs/                         # 配置层（主题、平台、工作流统一管理）
+│   ├── themes/{name}/
+│   │   ├── theme.json               # 主题配置（风格、标签、prompt）
+│   │   └── prompt-template.md       # 生成提示词模板
+│   ├── platforms/{name}.json        # 平台发布配置（模板、标签、规则）
+│   └── workflows/{name}.json        # ComfyUI API JSON 工作流
+├── assets/                          # 集中化素材池（物理文件永不移动）
+│   └── {YYYY}/{MM}/{DD}/
+│       └── {theme}__{HHmmss}__{seq}.{ext}
+│       └── {theme}__{HHmmss}__{seq}.{ext}.meta.json
+├── pipeline/                        # 流水线视图层（基于 .ref 引用文件，不移动真实文件）
+│   ├── 01-generating/
+│   ├── 02-pending-review/
+│   ├── 03-approved/
+│   ├── 04-scheduled/
 │   │   └── 2026-07-11/
 │   │       ├── 头条-童话仙境.md     # 发布包
 │   │       └── 小红书-手机壁纸.md
-│   └── 05-published/                # 已发布归档（按日期子目录）
-│       └── 2026-07-11/
-│           ├── 头条-童话仙境.md
-│           └── (素材软链接或路径引用)
-│
-├── themes/                          # 主题策略中心
-│   ├── 手机壁纸/
-│   │   ├── theme.json               # 主题配置
-│   │   ├── prompt-template.md       # 提示词模板
-│   │   └── performance.json         # 历史数据（爆款记录）
-│   ├── 电脑壁纸/
-│   │   └── ...
-│   └── 童话仙境/
-│       └── ...
-│
-├── platforms/                       # 平台发布配置
-│   ├── 头条/
-│   │   ├── template.md              # 标题模板、正文格式
-│   │   └── tags.json                # 常用标签、话题
-│   ├── 小红书/
-│   │   └── ...
-│   └── 抖音/
-│       └── ...
-│
-├── archive/                         # 素材母库（按年月归档）
-│   └── 2026/
-│       └── 07/
-│           ├── 童话仙境-20260711-001.png
-│           ├── 童话仙境-20260711-001.png.meta.json
-│           ├── 手机壁纸-20260711-042.png
-│           └── ...
-│
-└── .media-studio/                   # 扩展运行时数据（可选）
-    ├── index.json                   # 素材索引（加速搜索）
-    └── stats.json                   # 统计数据缓存
+│   └── 05-published/
+│       └── {filename}.ref           # → {"asset": "assets/YYYY/MM/DD/file.png"}
+├── archive/{theme}/{YYYY}/{MM}/      # 发布归档（按主题+日期分层）
+├── .trash/                          # 回收站（可恢复删除）
+└── .index/                          # 可扩展分层索引
+    ├── manifest.json                # 全局清单
+    ├── pipeline.json                # 流水线状态索引
+    └── {YYYY}/{MM}/assets.json      # 月度分片索引
 ```
 
 ### 3.3 数据模型
@@ -413,7 +383,7 @@ url: null
 
 **关键规则**：
 - 素材物理路径在 `archive/YYYY/MM/` 中永不改变
-- `pipeline/` 各阶段目录中存放的是**符号链接**或**索引文件**，不是真实文件移动
+- `pipeline/` 各阶段目录中存放的是 **.ref 引用文件（JSON 格式）**，不是真实文件移动。每个 .ref 文件内容为 `{"asset": "assets/YYYY/MM/DD/theme__HHmmss__seq.ext"}`，指向 `assets/` 中的真实文件。这确保了物理文件的集中管理和流水线状态的灵活编排
 - 状态变更只修改 `.meta.json` 中的 `status` 字段，记录 `status_history`
 - 删除操作：物理文件移至 `.trash/`（可恢复），或从 `archive/` 彻底删除（可选）
 
@@ -613,7 +583,7 @@ media-studio-extension/
 │       ├── dom.js                  # DOM 工具
 │       ├── format.js               # 格式化（日期、大小）
 │       ├── meta.js                 # .meta.json 读写
-│       └── search.js               # 素材搜索索引
+│       └── search.js               # 基于 .index/ monthly shards 的素材搜索
 ```
 
 ### 5.3 API 端点探测策略
@@ -707,10 +677,10 @@ async function generatePublishPackage(selection) {
   const { platform, theme, assets, copy, scheduledDate } = selection;
 
   // 读取平台模板
-  const platformConfig = await readFile(`platforms/${platform}/template.md`);
+  const platformConfig = await readFile(`configs/platforms/${platform}/template.md`);
 
   // 读取主题配置
-  const themeConfig = await readFile(`themes/${theme}/theme.json`).then(JSON.parse);
+  const themeConfig = await readFile(`configs/themes/${theme}/theme.json`).then(JSON.parse);
 
   // 生成 Frontmatter
   const frontmatter = {
@@ -812,7 +782,7 @@ curl -fsSL https://raw.githubusercontent.com/yourname/hermes-webui-media-studio/
 git clone https://github.com/yourname/hermes-webui-media-studio.git   ~/.hermes/webui-extension/media-studio
 
 # 创建 workspace 目录结构
-mkdir -p ~/workspace/media-studio/{workflows,pipeline/{01-generating,02-pending-review,03-approved,04-scheduled,05-published},themes,platforms,archive}
+mkdir -p ~/workspace/media-studio/{configs/{themes,platforms,workflows},assets,pipeline/{01-generating,02-pending-review,03-approved,04-scheduled,05-published},archive,.trash,.index}
 
 # 启动 WebUI 并加载扩展
 HERMES_WEBUI_EXTENSION_DIR="$HOME/.hermes/webui-extension" HERMES_WEBUI_EXTENSION_SCRIPT_URLS="/extensions/media-studio/app.js" HERMES_WEBUI_EXTENSION_STYLESHEET_URLS="/extensions/media-studio/app.css" ./start.sh
@@ -892,7 +862,7 @@ rm -rf ~/.hermes/webui-extension/media-studio
 
 目标：打通 ComfyUI，减少手工操作
 
-- [ ] 工作流浏览器：展示 `workflows/` 目录下的 API JSON
+- [ ] 工作流浏览器：展示 `configs/workflows/` 目录下的 API JSON
 - [ ] 批量生成触发：选择工作流 + 主题 + 数量 → 调用 Agent 生成
 - [ ] 生成进度监控：SSE 实时显示生成状态
 - [ ] 生成参数自动写入 `.meta.json`
