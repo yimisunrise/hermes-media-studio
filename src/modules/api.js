@@ -592,6 +592,204 @@ class WorkspaceAPI {
     await this.writeJSON('.index/manifest.json', data);
   }
 
+  // ── Task Management ──────────────────────────────────────────────
+
+  /** Build task directory path from UUID */
+  _buildTaskPath(uuid) {
+    return `tasks/${uuid}`;
+  }
+
+  /** Read task index from .index/tasks.json */
+  async readTaskIndex() {
+    try {
+      return await this.readJSON('.index/tasks.json');
+    } catch {
+      return { tasks: [] };
+    }
+  }
+
+  /** Write task index to .index/tasks.json */
+  async writeTaskIndex(data) {
+    await this.writeJSON('.index/tasks.json', data);
+  }
+
+  /** List all tasks from the task index */
+  async listTasks() {
+    const index = await this.readTaskIndex();
+    return index.tasks || [];
+  }
+
+  /** Create a new task with generated UUID */
+  async createTask(type, mode, brief) {
+    const uuid = crypto.randomUUID
+      ? crypto.randomUUID()
+      : Date.now().toString(36) + Math.random().toString(36).slice(2);
+    const taskPath = this._buildTaskPath(uuid);
+    const now = new Date().toISOString();
+
+    // Create task directory
+    await this.mkdir(taskPath);
+
+    // Write .meta.json
+    const meta = {
+      id: uuid,
+      type,
+      mode,
+      status: 'initialized',
+      created_at: now,
+      status_history: [
+        { status: 'initialized', changed_at: now, note: '任务创建' }
+      ]
+    };
+    await this.writeJSON(`${taskPath}/.meta.json`, meta);
+
+    // Write brief.md
+    await this.write(`${taskPath}/brief.md`, brief || '');
+
+    // Update task index
+    const index = await this.readTaskIndex();
+    index.tasks.push({
+      uuid,
+      type,
+      mode,
+      status: 'initialized',
+      created_at: now,
+      brief_summary: brief ? brief.slice(0, 100) : ''
+    });
+    await this.writeTaskIndex(index);
+
+    return { uuid, ...meta };
+  }
+
+  /** Get a task's metadata by UUID */
+  async getTask(uuid) {
+    try {
+      return await this.readJSON(`${this._buildTaskPath(uuid)}/.meta.json`);
+    } catch {
+      return null;
+    }
+  }
+
+  /** Update a task's status with history tracking */
+  async updateTaskStatus(uuid, newStatus, note = '') {
+    const meta = await this.getTask(uuid);
+    if (!meta) throw new Error(`Task not found: ${uuid}`);
+
+    meta.status = newStatus;
+    meta.status_history.push({
+      status: newStatus,
+      changed_at: new Date().toISOString(),
+      note
+    });
+
+    await this.writeJSON(`${this._buildTaskPath(uuid)}/.meta.json`, meta);
+
+    // Update task index
+    const index = await this.readTaskIndex();
+    const entry = index.tasks.find(t => t.uuid === uuid);
+    if (entry) {
+      entry.status = newStatus;
+    }
+    await this.writeTaskIndex(index);
+
+    return meta;
+  }
+
+  /** Read a task's brief.md content */
+  async readTaskBrief(uuid) {
+    try {
+      return await this.read(`${this._buildTaskPath(uuid)}/brief.md`);
+    } catch {
+      return '';
+    }
+  }
+
+  // ── Platform Config ──────────────────────────────────────────────
+
+  /** List all platform configurations */
+  async listPlatforms() {
+    const results = [];
+    try {
+      const entries = await this.tree('configs/platforms');
+      const files = this._normalizeTree(entries);
+
+      for (const file of files) {
+        if (!file.name.endsWith('.json')) continue;
+        try {
+          const content = await this.readJSON(`configs/platforms/${file.name}`);
+          const id = file.name.replace(/\.json$/, '');
+          results.push({ id, ...content });
+        } catch { /* skip unparseable platform */ }
+      }
+    } catch { /* configs/platforms may not exist */ }
+
+    return results;
+  }
+
+  /** Create a new platform configuration */
+  async createPlatform(name, publishTypes, enabled = true) {
+    const id = name.toLowerCase().replace(/\s+/g, '-');
+    const data = {
+      id,
+      name,
+      publishTypes,
+      enabled,
+      created_at: new Date().toISOString()
+    };
+    await this.writeJSON(`configs/platforms/${id}.json`, data);
+    return data;
+  }
+
+  /** Update an existing platform configuration */
+  async updatePlatform(id, data) {
+    const filePath = `configs/platforms/${id}.json`;
+    let existing = {};
+    try {
+      existing = await this.readJSON(filePath);
+    } catch { /* platform may not exist yet */ }
+
+    const merged = { ...existing, ...data, id };
+    await this.writeJSON(filePath, merged);
+    return merged;
+  }
+
+  // ── Copywriting Library ──────────────────────────────────────────
+
+  /** List all copywriting entries from index shards */
+  async listCopywritings() {
+    const results = [];
+    try {
+      const manifest = await this.readJSON('.index/copywriting/manifest.json');
+      const shards = manifest.shards || [];
+
+      for (const shard of shards) {
+        try {
+          const shardData = await this.readJSON(`.index/copywriting/${shard.year}/${shard.month}/index.json`);
+          const entries = shardData.entries || [];
+          results.push(...entries);
+        } catch { /* skip unreadable shard */ }
+      }
+    } catch { /* manifest may not exist */ }
+
+    return results;
+  }
+
+  /** Get a copywriting entry by UUID (searches via listCopywritings) */
+  async getCopywriting(uuid) {
+    const all = await this.listCopywritings();
+    const entry = all.find(e => e.uuid === uuid);
+    if (!entry) return null;
+
+    // Read full meta and content
+    try {
+      const meta = await this.readJSON(`${entry.path}/.meta.json`);
+      const content = await this.read(`${entry.path}/content.md`);
+      return { ...meta, content };
+    } catch {
+      return entry;
+    }
+  }
+
   /** Normalize tree response to array of { name, path, type, size? } */
   _normalizeTree(data) {
     if (Array.isArray(data)) return data;
