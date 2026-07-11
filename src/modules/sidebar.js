@@ -14,21 +14,36 @@ class SidebarManager {
   constructor() {
     this._injected = false;
     this._active = false;
+    this._logoSvg = null;
     this._onNavTabClick = this._onNavTabClick.bind(this);
     this._onRailBtnClick = this._onRailBtnClick.bind(this);
   }
 
-  init() {
+  async init() {
     if (this._injected) return;
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      this._inject();
+      await this._inject();
     } else {
       document.addEventListener('DOMContentLoaded', () => this._inject());
     }
   }
 
-  _inject() {
+  async _loadLogoSvg() {
+    if (this._logoSvg) return;
+    try {
+      const res = await fetch('/extensions/assets/logo.svg');
+      if (!res.ok) throw new Error('Failed to load logo.svg');
+      const text = await res.text();
+      const match = text.match(/<svg[^>]*>[\s\S]*?<\/svg>/i);
+      this._logoSvg = match ? match[0] : '';
+    } catch {
+      this._logoSvg = '';
+    }
+  }
+
+  async _inject() {
     if (this._injected) return;
+    await this._loadLogoSvg();
     this._injectRail();
     this._injectMobile();
     this._listenNativeTabs();
@@ -47,7 +62,7 @@ class SidebarManager {
     btn.className = 'rail-btn ms-rail-btn';
     btn.dataset.panel = 'media-studio';
     btn.title = 'Media Studio \u2014 \u81ea\u5a92\u4f53\u5185\u5bb9\u751f\u4ea7\u6d41\u6c34\u7ebf';
-    btn.innerHTML = '\uD83C\uDFAC';
+    btn.innerHTML = this._logoSvg.replace('<svg', '<svg width="20" height="20"');
     btn.addEventListener('click', this._onRailBtnClick);
 
     const controlBtn = rail.querySelector('[data-panel="control-center"], .rail-btn:last-child');
@@ -68,7 +83,7 @@ class SidebarManager {
     const link = document.createElement('a');
     link.className = 'sidebar-link ms-rail-btn';
     link.href = '#';
-    link.innerHTML = '\uD83C\uDFAC Media Studio';
+    link.innerHTML = this._logoSvg.replace('<svg', '<svg width="18" height="18" style="vertical-align:middle;margin-right:4px"') + ' Media Studio';
     link.addEventListener('click', (e) => {
       e.preventDefault();
       this._onRailBtnClick();
