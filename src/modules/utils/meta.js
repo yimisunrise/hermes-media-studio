@@ -81,13 +81,30 @@ async function syncPipelineIndex(api, assetPath, newStatus) {
   const stageDir = stageMap[newStatus];
   if (!stageDir) return;
 
-  const archivePath = assetPath.replace(/^pipeline\/\d+-\w+\//, '');
   const filename = assetPath.split('/').pop();
 
   try {
-    await api.write(`pipeline/${stageDir}/${filename}.ref`, `ref: ${archivePath}`);
+    await api.write(`pipeline/${stageDir}/${filename}.ref`, JSON.stringify({ asset: assetPath }));
   } catch {
     // pipeline dir might not exist yet
+  }
+
+  // Update .index/pipeline.json
+  try {
+    let pipelineIndex = {};
+    try {
+      pipelineIndex = await api.readJSON('.index/pipeline.json');
+    } catch {
+      // file doesn't exist yet, start fresh
+    }
+    pipelineIndex[filename] = {
+      path: assetPath,
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    };
+    await api.writeJSON('.index/pipeline.json', pipelineIndex);
+  } catch {
+    // index dir might not exist yet
   }
 }
 

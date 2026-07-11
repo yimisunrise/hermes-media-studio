@@ -1,13 +1,18 @@
-const INDEX_PATH = '.media-studio/index.json';
+const MANIFEST_PATH = '.index/manifest.json';
 
 export async function buildSearchIndex(api) {
-  const index = { assets: [], built_at: new Date().toISOString() };
+  const shards = [];
+  let totalAssets = 0;
 
   try {
     const archiveData = await api._walkArchive();
+    const groups = {};
     for (const asset of archiveData) {
       if (!asset.meta) continue;
-      index.assets.push({
+      const parts = asset.path.split('/');
+      const key = `${parts[1]}/${parts[2]}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push({
         path: asset.path,
         filename: asset.name,
         theme: asset.meta.theme,
@@ -18,22 +23,71 @@ export async function buildSearchIndex(api) {
         created_at: asset.meta.created_at
       });
     }
+
+    let existingManifest = {};
+    try {
+      existingManifest = await api.readIndexManifest();
+    } catch {
+      // first build
+    }
+    const existingShards = new Set(existingManifest.shards || []);
+
+    for (const [key, assets] of Object.entries(groups)) {
+      if (existingShards.has(key)) {
+        shards.push(key);
+        totalAssets += assets.length;
+        continue;
+      }
+      const [yyyy, mm] = key.split('/');
+      const shardData = { assets, built_at: new Date().toISOString() };
+      try {
+        await api.writeShard(yyyy, mm, shardData);
+      } catch {
+        // shard write may fail
+      }
+      shards.push(key);
+      totalAssets += assets.length;
+    }
+
+    const manifest = { version: 1, shards };
+    try {
+      await api.writeIndexManifest(manifest);
+    } catch {
+      // manifest write may fail
+    }
   } catch {
-    // Archive may be empty
+    // archive may be empty
   }
 
-  try {
-    await api.writeJSON(INDEX_PATH, index);
-  } catch {
-    // Index file write may fail if .media-studio doesn't exist
-  }
-
-  return index;
+  return { shards: shards.length, assets: totalAssets };
 }
 
 export async function loadSearchIndex(api) {
   try {
-    return await api.readJSON(INDEX_PATH);
+    const manifest = await api.readIndexManifest();
+    const shardList = manifest.shards || [];
+
+    const shardPromises = shardList.map(async (key) => {
+      const [yyyy, mm] = key.split('/');
+      try {
+        return await api.readShard(yyyy, mm);
+      } catch {
+        return { assets: [] };
+      }
+    });
+
+    const shardResults = await Promise.all(shardPromises);
+
+    const mergedAssets = [];
+    for (const shard of shardResults) {
+      if (shard.assets && Array.isArray(shard.assets)) {
+        for (const asset of shard.assets) {
+          mergedAssets.push(asset);
+        }
+      }
+    }
+
+    return { assets: mergedAssets, built_at: new Date().toISOString() };
   } catch {
     return null;
   }

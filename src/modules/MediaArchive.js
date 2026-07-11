@@ -9,7 +9,7 @@ export class MediaArchive {
     this.api = api;
     this.state = state;
     this.mediaCard = new MediaCard(api, state);
-    this.currentPath = 'archive';
+    this.currentPath = 'assets';
     this._isTrashMode = false;
   }
 
@@ -80,15 +80,26 @@ export class MediaArchive {
     await this._browseArchive();
   }
 
-  async _browseArchive(path = '') {
+  async _browseArchive(subdir) {
     if (!this._mainEl) return;
     empty(this._mainEl);
 
+    if (subdir) {
+      this._navStack = this._navStack || [];
+      this._navStack.push(subdir);
+    } else {
+      this._navStack = [];
+    }
+
+    const fullPath = this._navStack.length > 0
+      ? this.currentPath + '/' + this._navStack.join('/')
+      : this.currentPath;
+
     try {
-      const data = await this.api.tree(this.currentPath + (path ? '/' + path : ''));
+      const data = await this.api.tree(fullPath);
       const entries = Array.isArray(data) ? data : (data.children || data.files || []);
-      const dirs = entries.filter(e => e.type === 'directory' || e.isDirectory);
-      const files = entries.filter(e => e.type !== 'directory' && !e.isDirectory && !e.name.endsWith('.meta.json'));
+      const dirs = entries.filter(e => e.type === 'dir' || e.type === 'directory' || e.isDirectory);
+      const files = entries.filter(e => e.type !== 'dir' && e.type !== 'directory' && !e.isDirectory && !e.name.endsWith('.meta.json'));
 
       if (dirs.length === 0 && files.length === 0) {
         this._mainEl.innerHTML = '<div class="ms-empty"><div class="ms-empty-icon">📁</div><div>素材库为空</div></div>';
@@ -117,7 +128,8 @@ export class MediaArchive {
         const grid = document.createElement('div');
         grid.className = 'ms-review-grid';
         for (const file of files) {
-          const asset = { name: file.name, path: `${this.currentPath}/${path ? path + '/' : ''}${file.name}`, meta: null };
+          const relDir = this._navStack.length > 0 ? this._navStack.join('/') + '/' : '';
+          const asset = { name: file.name, path: `${this.currentPath}/${relDir}${file.name}`, meta: null };
           try {
             asset.meta = await this.api.readJSON(asset.path + '.meta.json');
           } catch { /* no meta */ }
@@ -268,7 +280,7 @@ export class MediaArchive {
 
   async _restoreFromTrash(originalPath, trashPath) {
     try {
-      const targetDir = originalPath ? originalPath.substring(0, originalPath.lastIndexOf('/')) : 'archive';
+      const targetDir = originalPath ? originalPath.substring(0, originalPath.lastIndexOf('/')) : 'assets';
       const fileName = trashPath.split('/').pop();
       const restoredPath = targetDir + '/' + fileName;
 
