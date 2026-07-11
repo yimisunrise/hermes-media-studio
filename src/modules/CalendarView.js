@@ -1,6 +1,5 @@
 import { createElement, empty } from './utils/dom.js';
 import { formatDate } from './utils/format.js';
-import { changeStatus, readMeta, writeMeta } from './utils/meta.js';
 
 export class CalendarView {
   constructor({ api, state }) {
@@ -33,42 +32,45 @@ export class CalendarView {
   }
 
   async _loadEvents() {
+    this.events = [];
+    const year = this.currentDate.getFullYear();
+    const month = this.currentDate.getMonth() + 1;
+
+    // Count assets per day from shard
     try {
-      const scheduledData = await this.api.loadKanbanData();
-      this.events = [];
-
-      for (const asset of scheduledData.scheduled) {
-        this.events.push({
-          title: asset.name,
-          date: asset.meta?.created_at?.split('T')[0] || '',
-          type: 'scheduled',
-          path: asset.path
-        });
-      }
-
-      // Also read published packages
-      try {
-        const published = await this.api.tree('pipeline/05-published');
-        const pubEntries = Array.isArray(published) ? published : (published.children || published.files || []);
-        for (const entry of pubEntries) {
-          if (!entry.name.endsWith('.md')) continue;
-          try {
-            const content = await this.api.read(`pipeline/05-published/${entry.name}`);
-            const dateMatch = content.match(/scheduled_at:\s*(.+)/);
-            if (dateMatch) {
-              this.events.push({
-                title: entry.name.replace('.md', ''),
-                date: dateMatch[1].trim().split('T')[0],
-                type: 'published',
-                path: `pipeline/05-published/${entry.name}`
-              });
+      const shard = await this.api.readShard(year, month);
+      if (shard && shard.assets) {
+        for (const asset of shard.assets) {
+          const dateStr = asset.created_at ? asset.created_at.split('T')[0] : '';
+          if (dateStr) {
+            const existing = this.events.find(e => e.date === dateStr);
+            if (existing) {
+              existing.assets = (existing.assets || 0) + 1;
+            } else {
+              this.events.push({ date: dateStr, assets: 1, copywritings: 0 });
             }
-          } catch { /* skip */ }
+          }
         }
-      } catch { /* no published dir */ }
-    } catch (e) {
-      console.error('Load calendar events failed:', e);
-    }
+      }
+    } catch { /* no shard */ }
+
+    // Count copywriting per day from index
+    try {
+      const cwShard = await this.api.readJSON(`.index/copywriting/${year}/${String(month).padStart(2, '0')}/index.json`);
+      if (cwShard && cwShard.items) {
+        for (const item of cwShard.items) {
+          const dateStr = item.created_at ? item.created_at.split('T')[0] : '';
+          if (dateStr) {
+            const existing = this.events.find(e => e.date === dateStr);
+            if (existing) {
+              existing.copywritings = (existing.copywritings || 0) + 1;
+            } else {
+              this.events.push({ date: dateStr, assets: 0, copywritings: 1 });
+            }
+          }
+        }
+      }
+    } catch { /* no cw shard */ }
   }
 
   _renderNav() {
@@ -206,35 +208,30 @@ export class CalendarView {
       dayEl.dataset.date = dateStr;
       if (dateStr === todayStr) dayEl.classList.add('today');
 
-      dayEl.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      });
-      dayEl.addEventListener('drop', (e) => this._handleDrop(e, dateStr));
-
       const num = document.createElement('div');
       num.className = 'ms-calendar-day-number';
       num.textContent = String(day);
       dayEl.appendChild(num);
 
       const dayEvents = this.events.filter(e => e.date === dateStr);
-      for (const evt of dayEvents) {
-        const eventEl = document.createElement('div');
-        eventEl.className = `ms-calendar-event ${evt.type}`;
-        eventEl.textContent = evt.title;
-        eventEl.draggable = true;
-        eventEl.dataset.path = evt.path;
-        eventEl.dataset.date = evt.date;
-        eventEl.dataset.eventType = evt.type;
-        eventEl.addEventListener('dragstart', (e) => {
-          e.dataTransfer.setData('text/plain', JSON.stringify({ path: evt.path, date: evt.date }));
-          e.dataTransfer.effectAllowed = 'move';
-        });
-        if (evt.type === 'scheduled') {
-          eventEl.addEventListener('dblclick', () => this._handlePublish(evt));
-          eventEl.title = '双击标记已发布';
+      if (dayEvents.length > 0) {
+        const counts = dayEvents[0];
+        const tags = document.createElement('div');
+        tags.className = 'ms-calendar-tags';
+
+        if (counts.assets > 0) {
+          const tag = document.createElement('span');
+          tag.className = 'ms-calendar-tag ms-calendar-tag-asset';
+          tag.textContent = `🖼 ${counts.assets}`;
+          tags.appendChild(tag);
         }
-        dayEl.appendChild(eventEl);
+        if (counts.copywritings > 0) {
+          const tag = document.createElement('span');
+          tag.className = 'ms-calendar-tag ms-calendar-tag-copy';
+          tag.textContent = `📝 ${counts.copywritings}`;
+          tags.appendChild(tag);
+        }
+        dayEl.appendChild(tags);
       }
 
       grid.appendChild(dayEl);
@@ -269,35 +266,30 @@ export class CalendarView {
       dayEl.dataset.date = dateStr;
       if (dateStr === todayStr) dayEl.classList.add('today');
 
-      dayEl.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      });
-      dayEl.addEventListener('drop', (e) => this._handleDrop(e, dateStr));
-
       const num = document.createElement('div');
       num.className = 'ms-calendar-day-number';
       num.textContent = String(dateObj.getDate());
       dayEl.appendChild(num);
 
       const dayEvents = this.events.filter(e => e.date === dateStr);
-      for (const evt of dayEvents) {
-        const eventEl = document.createElement('div');
-        eventEl.className = `ms-calendar-event ${evt.type}`;
-        eventEl.textContent = evt.title;
-        eventEl.draggable = true;
-        eventEl.dataset.path = evt.path;
-        eventEl.dataset.date = evt.date;
-        eventEl.dataset.eventType = evt.type;
-        eventEl.addEventListener('dragstart', (e) => {
-          e.dataTransfer.setData('text/plain', JSON.stringify({ path: evt.path, date: evt.date }));
-          e.dataTransfer.effectAllowed = 'move';
-        });
-        if (evt.type === 'scheduled') {
-          eventEl.addEventListener('dblclick', () => this._handlePublish(evt));
-          eventEl.title = '双击标记已发布';
+      if (dayEvents.length > 0) {
+        const counts = dayEvents[0];
+        const tags = document.createElement('div');
+        tags.className = 'ms-calendar-tags';
+
+        if (counts.assets > 0) {
+          const tag = document.createElement('span');
+          tag.className = 'ms-calendar-tag ms-calendar-tag-asset';
+          tag.textContent = `🖼 ${counts.assets}`;
+          tags.appendChild(tag);
         }
-        dayEl.appendChild(eventEl);
+        if (counts.copywritings > 0) {
+          const tag = document.createElement('span');
+          tag.className = 'ms-calendar-tag ms-calendar-tag-copy';
+          tag.textContent = `📝 ${counts.copywritings}`;
+          tags.appendChild(tag);
+        }
+        dayEl.appendChild(tags);
       }
 
       grid.appendChild(dayEl);
@@ -306,91 +298,4 @@ export class CalendarView {
     this._gridEl.appendChild(grid);
   }
 
-  async _handleDrop(e, targetDate) {
-    e.preventDefault();
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      if (!data.path || !data.date || data.date === targetDate) return;
-
-      const content = await this.api.read(data.path);
-      const updated = content.replace(/(scheduled_at:\s*).+/, `$1${targetDate}`);
-      await this.api.write(data.path, updated);
-
-      const parts = data.path.split('/');
-      if (parts.length >= 3) {
-        const fileName = parts.pop();
-        const oldDir = parts.join('/');
-        const newDir = parts.slice(0, -1).join('/') + '/' + targetDate;
-        if (oldDir !== newDir) {
-          try {
-            await this.api.rename(data.path, `${newDir}/${fileName}`);
-          } catch { /* directory may not exist, skip move */ }
-        }
-      }
-
-      await this._loadEvents();
-      this._renderGrid();
-    } catch (err) {
-      console.error('Drop handling failed:', err);
-    }
-  }
-
-  async _handlePublish(evt) {
-    if (evt.type !== 'scheduled') return;
-    const url = prompt('请输入发布链接:');
-    if (!url) return;
-
-    try {
-      const content = await this.api.read(evt.path);
-      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-      if (!frontmatterMatch) return;
-
-      const now = new Date().toISOString().split('T')[0];
-      let frontmatter = frontmatterMatch[1];
-
-      if (frontmatter.includes('published_url:')) {
-        frontmatter = frontmatter.replace(/published_url:\s*.*/, `published_url: ${url}`);
-      } else {
-        frontmatter += `\npublished_url: ${url}`;
-      }
-      if (frontmatter.includes('published_at:')) {
-        frontmatter = frontmatter.replace(/published_at:\s*.*/, `published_at: ${now}`);
-      } else {
-        frontmatter += `\npublished_at: ${now}`;
-      }
-      if (frontmatter.includes('status:')) {
-        frontmatter = frontmatter.replace(/status:\s*.*/, 'status: published');
-      } else {
-        frontmatter += '\nstatus: published';
-      }
-
-      const updated = content.replace(/^---\n[\s\S]*?\n---/, `---\n${frontmatter}\n---`);
-      const fileName = evt.path.split('/').pop();
-      const newPath = `pipeline/05-published/${fileName}`;
-
-      await this.api.write(newPath, updated);
-
-      const assetPattern = /assets?:\s*\n((?:\s*-\s*.+\n?)+)/gi;
-      let assetMatch;
-      while ((assetMatch = assetPattern.exec(content)) !== null) {
-        const lines = assetMatch[1].split('\n').filter(l => l.trim());
-        for (const line of lines) {
-          const assetPath = line.replace(/^\s*-\s*/, '').trim();
-          if (!assetPath) continue;
-          try {
-            const meta = await readMeta(this.api, assetPath);
-            if (!meta.publish_history) meta.publish_history = [];
-            meta.publish_history.push({ date: now, url, package: fileName });
-            await writeMeta(this.api, assetPath, meta);
-          } catch { /* skip */ }
-        }
-      }
-
-      try { await this.api.delete(evt.path); } catch { /* optional */ }
-      await this._loadEvents();
-      this._renderGrid();
-    } catch (err) {
-      console.error('Publish failed:', err);
-    }
-  }
 }
