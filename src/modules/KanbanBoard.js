@@ -1,28 +1,20 @@
-import { MediaCard } from './components/MediaCard.js';
-import { ThemeSelector } from './components/ThemeSelector.js';
-import { MediaDetail } from './components/MediaDetail.js';
-import { createElement, empty, debounce } from './utils/dom.js';
-import { changeStatus } from './utils/meta.js';
+import { createElement, empty } from './utils/dom.js';
 
 export class KanbanBoard {
   constructor({ api, state }) {
     this.api = api;
     this.state = state;
-    this.themeSelector = new ThemeSelector(api, state, {
-      onChange: () => this.refresh()
-    });
-    this.mediaCard = new MediaCard(api, state);
-    this._debouncedSearch = debounce((q) => {
-      this.state.setFilter({ search: q });
-      this.refresh();
-    }, 400);
+    this._sm = null;
+    this._initSM();
+  }
+
+  async _initSM() {
+    const { createStateMachine } = await import('./utils/stateMachine.js');
+    this._sm = await createStateMachine(this.api);
   }
 
   async render(container) {
     container.innerHTML = '';
-
-    const toolbar = this._renderToolbar();
-    container.appendChild(toolbar);
 
     const board = document.createElement('div');
     board.className = 'ms-kanban';
@@ -34,88 +26,67 @@ export class KanbanBoard {
     await this.refresh();
   }
 
-  _renderToolbar() {
-    const toolbar = document.createElement('div');
-    toolbar.className = 'ms-toolbar';
-
-    const filterBar = document.createElement('div');
-    filterBar.className = 'ms-filter-bar';
-    this.themeSelector.render(filterBar);
-
-    const dateSelect = document.createElement('select');
-    dateSelect.className = 'ms-select';
-    ['全部', '今天', '本周', '本月', '自定义'].forEach((label, i) => {
-      const opt = document.createElement('option');
-      opt.value = ['all', 'today', 'week', 'month', 'custom'][i];
-      opt.textContent = label;
-      dateSelect.appendChild(opt);
-    });
-    dateSelect.addEventListener('change', () => {
-      this.state.setFilter({ dateRange: dateSelect.value });
-      this.refresh();
-    });
-    filterBar.appendChild(dateSelect);
-
-    toolbar.appendChild(filterBar);
-
-    const searchInput = document.createElement('input');
-    searchInput.className = 'ms-input ms-input-search';
-    searchInput.type = 'text';
-    searchInput.placeholder = '搜索素材...';
-    searchInput.addEventListener('input', (e) => this._debouncedSearch(e.target.value));
-    toolbar.appendChild(searchInput);
-
-    const actions = document.createElement('div');
-    actions.className = 'ms-toolbar-actions';
-
-    const genBtn = document.createElement('button');
-    genBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
-    genBtn.textContent = '⚡ 批量生成';
-    genBtn.addEventListener('click', () => {
-      window.location.hash = '#generation';
-    });
-    actions.appendChild(genBtn);
-
-    const pkgBtn = document.createElement('button');
-    pkgBtn.className = 'ms-btn ms-btn-sm';
-    pkgBtn.textContent = '📦 新建发布包';
-    pkgBtn.addEventListener('click', () => {
-      window.location.hash = '#package-editor';
-    });
-    actions.appendChild(pkgBtn);
-
-    toolbar.appendChild(actions);
-    return toolbar;
-  }
-
   async refresh() {
-    const filter = this.state.getKey('filter');
     const boardEl = this._boardEl;
     if (!boardEl) return;
 
     empty(boardEl);
 
     try {
-      const kanbanData = await this.api.loadKanbanData(filter);
-      this.state.setAssets(kanbanData);
+      // Ensure state machine is ready
+      if (!this._sm) {
+        await this._initSM();
+      }
 
-      const columns = [
-        { key: 'generating', title: '🔄 生成中', data: kanbanData.generating },
-        { key: 'pending', title: '🔍 待审核', data: kanbanData.pending },
-        { key: 'approved', title: '✅ 已审核', data: kanbanData.approved },
-        { key: 'scheduled', title: '📅 排期', data: kanbanData.scheduled }
-      ];
+      // Load tasks from task index
+      const taskIndex = await this.api.readTaskIndex();
+      const tasks = (taskIndex.tasks || []).filter(t => t.status !== 'initialized');
 
-      for (const col of columns) {
-        const columnEl = this._renderColumn(col);
-        boardEl.appendChild(columnEl);
+      // Collect all kanban states across task types
+      const taskTypes = this._sm.getTaskTypes();
+      const columnMap = {}; // status -> { tasks: [], title: string }
+      const statusLabels = {
+        generating: '生成中',
+        pending_review: '待审核',
+        approved: '已审核',
+        scheduled: '已排期',
+        published: '已发布',
+        rejected: '未通过'
+      };
+
+      for (const type of taskTypes) {
+        const kanbanStates = this._sm.getKanbanStates(type);
+        for (const state of kanbanStates) {
+          if (!columnMap[state]) {
+            columnMap[state] = {
+              tasks: [],
+              title: statusLabels[state] || state
+            };
+          }
+        }
+      }
+
+      // Group tasks by status
+      for (const task of tasks) {
+        const status = task.status;
+        if (columnMap[status]) {
+          columnMap[status].tasks.push(task);
+        }
+      }
+
+      // Render columns in order
+      const columnOrder = ['generating', 'pending_review', 'approved', 'scheduled', 'published', 'rejected'];
+      for (const key of columnOrder) {
+        if (!columnMap[key]) continue;
+        const colEl = this._renderColumn(key, columnMap[key]);
+        boardEl.appendChild(colEl);
       }
     } catch (e) {
-      boardEl.innerHTML = `<div class="ms-empty"><div class="ms-empty-icon">⚠</div><div>加载失败: ${e.message}</div></div>`;
+      boardEl.innerHTML = `<div class="ms-empty"><div class="ms-empty-icon">!</div><div>加载失败: ${e.message}</div></div>`;
     }
   }
 
-  _renderColumn({ key, title, data }) {
+  _renderColumn(key, { tasks, title }) {
     const col = document.createElement('div');
     col.className = 'ms-kanban-column';
     col.dataset.column = key;
@@ -129,7 +100,7 @@ export class KanbanBoard {
 
     const count = document.createElement('span');
     count.className = 'ms-column-count';
-    count.textContent = `${data.length}`;
+    count.textContent = `${tasks.length}`;
     header.appendChild(count);
 
     col.appendChild(header);
@@ -138,63 +109,15 @@ export class KanbanBoard {
     body.className = 'ms-kanban-column-body';
     body.dataset.column = key;
 
-    const statusMap = {
-      generating: 'generating',
-      pending: 'pending-review',
-      approved: 'approved',
-      scheduled: 'scheduled'
-    };
-
-    body.ondragover = (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    };
-
-    body.ondrop = async (e) => {
-      e.preventDefault();
-      const assetPath = e.dataTransfer.getData('text/plain');
-      const targetKey = body.dataset.column;
-      if (!assetPath || !targetKey) return;
-      const mappedStatus = statusMap[targetKey];
-      if (!mappedStatus) return;
-      try {
-        await changeStatus(this.api, assetPath, mappedStatus, '拖拽移动');
-        await this.refresh();
-      } catch (err) {
-        console.error('Drag-drop status change failed:', err);
-      }
-    };
-
-    if (data.length === 0) {
+    if (tasks.length === 0) {
       const emptyMsg = document.createElement('div');
       emptyMsg.className = 'ms-empty';
       emptyMsg.style.padding = '24px 8px';
-      emptyMsg.textContent = '暂无素材';
+      emptyMsg.textContent = '暂无任务';
       body.appendChild(emptyMsg);
     } else {
-      for (const asset of data) {
-        const card = this.mediaCard.render(asset, { compact: true });
-        card.dataset.path = asset.path;
-        card.draggable = true;
-
-        card.addEventListener('dragstart', (e) => {
-          e.dataTransfer.setData('text/plain', asset.path);
-          e.dataTransfer.effectAllowed = 'move';
-          card.classList.add('ms-dragging');
-        });
-
-        card.addEventListener('dragend', () => {
-          card.classList.remove('ms-dragging');
-        });
-
-        card.addEventListener('click', () => {
-          this._openDetail(asset);
-        });
-
-        if (key === 'generating' && asset.meta?.generation) {
-          this._appendGenerationProgress(card, asset.meta);
-        }
-
+      for (const task of tasks) {
+        const card = this._renderTaskCard(task);
         body.appendChild(card);
       }
     }
@@ -203,49 +126,49 @@ export class KanbanBoard {
     return col;
   }
 
-  _appendGenerationProgress(card, meta) {
-    const history = meta.status_history;
-    const lastEntry = history?.[history.length - 1];
-    const statusText = lastEntry?.status || 'generating';
-    const changedAt = lastEntry?.changed_at || '';
+  _renderTaskCard(task) {
+    const card = document.createElement('div');
+    card.className = 'ms-kanban-card';
+    card.dataset.uuid = task.uuid;
 
-    const statusLabel = {
-      generating: '生成中',
-      'pending-review': '待审核',
-      approved: '已审核',
-      scheduled: '已排期'
-    }[statusText] || statusText;
+    // Type badge with config color
+    const typeColor = this._sm ? this._sm.getColor(task.type) : '#888';
+    const typeLabel = this._sm ? this._sm.getLabel(task.type) : (task.type || '未知');
 
-    const progressMap = {
-      generating: 30,
-      'pending-review': 100,
-      approved: 100,
-      scheduled: 100
-    };
-    const pct = progressMap[statusText] || 50;
+    const badge = document.createElement('span');
+    badge.className = 'ms-task-type-badge';
+    badge.style.backgroundColor = typeColor;
+    badge.textContent = typeLabel;
+    card.appendChild(badge);
 
-    const bar = document.createElement('div');
-    bar.className = 'ms-progress-bar';
+    // Mode badge if present
+    if (task.mode) {
+      const modeBadge = document.createElement('span');
+      modeBadge.className = 'ms-task-mode-badge';
+      modeBadge.textContent = task.mode;
+      card.appendChild(modeBadge);
+    }
 
-    const fill = document.createElement('div');
-    fill.className = 'ms-progress-fill';
-    fill.style.width = `${pct}%`;
-    bar.appendChild(fill);
+    // Brief summary
+    const summary = document.createElement('div');
+    summary.className = 'ms-task-summary';
+    summary.textContent = task.brief_summary || '(无摘要)';
+    card.appendChild(summary);
 
-    const text = document.createElement('div');
-    text.className = 'ms-progress-text';
-    text.textContent = statusLabel + (changedAt ? ` · ${new Date(changedAt).toLocaleTimeString()}` : '');
+    // Created time
+    if (task.created_at) {
+      const time = document.createElement('div');
+      time.className = 'ms-task-time';
+      const d = new Date(task.created_at);
+      time.textContent = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      card.appendChild(time);
+    }
 
-    const container = document.createElement('div');
-    container.className = 'ms-generation-progress';
-    container.appendChild(text);
-    container.appendChild(bar);
+    // Click to navigate to task detail
+    card.addEventListener('click', () => {
+      window.location.hash = `#tasks/${task.uuid}`;
+    });
 
-    card.appendChild(container);
-  }
-
-  _openDetail(asset) {
-    const detail = new MediaDetail(this.api, this.state);
-    detail.show(asset);
+    return card;
   }
 }

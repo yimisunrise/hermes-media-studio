@@ -1,6 +1,4 @@
-import { MediaCard } from './components/MediaCard.js';
-import { MediaDetail } from './components/MediaDetail.js';
-import { changeStatus } from './utils/meta.js';
+import { createStateMachine } from './utils/stateMachine.js';
 import { createElement, empty, qs, qsa } from './utils/dom.js';
 import { formatDateTime } from './utils/format.js';
 
@@ -8,62 +6,170 @@ export class ReviewMode {
   constructor({ api, state }) {
     this.api = api;
     this.state = state;
-    this.mediaCard = new MediaCard(api, state);
-    this.pendingAssets = [];
+    this.pendingTasks = [];
     this.selectedIndex = -1;
     this._keyHandler = null;
-    this._ensureGroupStyles();
+    this._sm = null;
+    this._initSM();
+    this._ensureStyles();
   }
 
-  _ensureGroupStyles() {
-    if (document.getElementById('ms-review-group-styles')) return;
+  async _initSM() {
+    try {
+      this._sm = await createStateMachine(this.api);
+    } catch {
+      this._sm = null;
+    }
+  }
+
+  _ensureStyles() {
+    if (document.getElementById('ms-review-task-styles')) return;
     const style = document.createElement('style');
-    style.id = 'ms-review-group-styles';
+    style.id = 'ms-review-task-styles';
     style.textContent = `
-      .ms-group-container {
-        margin-bottom: 12px;
+      .ms-review-task-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 14px 16px;
+        margin-bottom: 8px;
         border: 1px solid var(--ms-border, rgba(255,255,255,0.08));
         border-radius: 8px;
-        background: var(--ms-surface-alt, rgba(255,255,255,0.02));
+        background: var(--ms-surface, rgba(255,255,255,0.03));
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .ms-review-task-card:hover {
+        background: var(--ms-surface-hover, rgba(255,255,255,0.06));
+      }
+      .ms-review-task-card.selected {
+        border-color: var(--ms-accent, #4a90d9);
+        background: var(--ms-surface-active, rgba(74,144,217,0.08));
+      }
+      .ms-review-task-card .ms-task-card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .ms-review-task-card .ms-task-type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #fff;
+      }
+      .ms-review-task-card .ms-task-type-badge.type-media {
+        background: #4a90d9;
+      }
+      .ms-review-task-card .ms-task-type-badge.type-copywriting {
+        background: #27ae60;
+      }
+      .ms-review-task-card .ms-task-mode-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        background: var(--ms-surface-alt, rgba(255,255,255,0.06));
+        color: var(--ms-text-secondary);
+      }
+      .ms-review-task-card .ms-task-brief {
+        font-size: 13px;
+        color: var(--ms-text-primary);
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
         overflow: hidden;
       }
-      .ms-group-header {
+      .ms-review-task-card .ms-task-meta {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 14px;
-        cursor: pointer;
-        user-select: none;
-        font-size: 13px;
+        font-size: 12px;
         color: var(--ms-text-secondary);
+      }
+      .ms-review-task-card .ms-task-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .ms-review-task-card .ms-task-actions .ms-btn {
+        padding: 4px 14px;
+        font-size: 12px;
+        border-radius: 4px;
+        border: 1px solid var(--ms-border, rgba(255,255,255,0.12));
+        background: var(--ms-surface-alt, rgba(255,255,255,0.04));
+        color: var(--ms-text-primary);
+        cursor: pointer;
         transition: background 0.15s;
       }
-      .ms-group-header:hover {
-        background: var(--ms-surface-hover, rgba(255,255,255,0.04));
+      .ms-review-task-card .ms-task-actions .ms-btn:hover {
+        background: var(--ms-surface-hover, rgba(255,255,255,0.08));
       }
-      .ms-group-header-title {
-        font-weight: 500;
+      .ms-review-task-card .ms-task-actions .ms-btn.btn-approve {
+        border-color: #27ae60;
+        color: #27ae60;
+      }
+      .ms-review-task-card .ms-task-actions .ms-btn.btn-approve:hover {
+        background: rgba(39,174,96,0.12);
+      }
+      .ms-review-task-card .ms-task-actions .ms-btn.btn-reject {
+        border-color: #e74c3c;
+        color: #e74c3c;
+      }
+      .ms-review-task-card .ms-task-actions .ms-btn.btn-reject:hover {
+        background: rgba(231,76,60,0.12);
+      }
+      .ms-review-detail-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .ms-review-detail-panel {
+        width: 640px;
+        max-width: 90vw;
+        max-height: 80vh;
+        overflow-y: auto;
+        background: var(--ms-bg, #1a1a2e);
+        border: 1px solid var(--ms-border, rgba(255,255,255,0.12));
+        border-radius: 12px;
+        padding: 24px;
+      }
+      .ms-review-detail-panel h3 {
+        margin: 0 0 16px;
+        font-size: 16px;
         color: var(--ms-text-primary);
       }
-      .ms-group-header .ms-group-arrow {
-        transition: transform 0.2s;
-        font-size: 11px;
-        opacity: 0.5;
+      .ms-review-detail-panel .ms-detail-section {
+        margin-bottom: 16px;
       }
-      .ms-group-container.ms-group-collapsed .ms-group-arrow {
-        transform: rotate(-90deg);
+      .ms-review-detail-panel .ms-detail-section .ms-detail-label {
+        font-size: 12px;
+        color: var(--ms-text-secondary);
+        margin-bottom: 4px;
       }
-      .ms-group-container.ms-group-collapsed .ms-group-grid {
-        display: none;
+      .ms-review-detail-panel .ms-detail-section .ms-detail-value {
+        font-size: 13px;
+        color: var(--ms-text-primary);
+        white-space: pre-wrap;
+        word-break: break-word;
       }
-      .ms-group-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 0 10px 10px;
+      .ms-review-detail-panel .ms-detail-close {
+        margin-top: 16px;
+        padding: 8px 20px;
+        border-radius: 6px;
+        border: 1px solid var(--ms-border, rgba(255,255,255,0.12));
+        background: var(--ms-surface-alt, rgba(255,255,255,0.04));
+        color: var(--ms-text-primary);
+        cursor: pointer;
       }
-      .ms-group-grid .ms-media-card {
-        flex: 0 0 auto;
+      .ms-review-detail-panel .ms-detail-close:hover {
+        background: var(--ms-surface-hover, rgba(255,255,255,0.08));
       }
     `;
     document.head.appendChild(style);
@@ -76,7 +182,7 @@ export class ReviewMode {
     header.className = 'ms-review-header';
     const title = document.createElement('span');
     title.className = 'ms-review-header-title';
-    title.textContent = '素材审核';
+    title.textContent = '审核管理';
     header.appendChild(title);
 
     const countDisplay = document.createElement('span');
@@ -88,32 +194,15 @@ export class ReviewMode {
 
     const actions = document.createElement('div');
     actions.className = 'ms-review-actions';
-    const bulkActions = [
-      { label: '✅ 批量通过', action: 'approve' },
-      { label: '🗑 批量删除', action: 'delete' },
-      { label: '⭐ 批量标星', action: 'star' },
-      { label: '📅 批量加入排期', action: 'schedule' }
-    ];
-    for (const ba of bulkActions) {
-      const btn = document.createElement('button');
-      btn.className = 'ms-btn ms-btn-sm';
-      btn.textContent = ba.label;
-      btn.disabled = true;
-      btn.id = `ms-bulk-${ba.action}`;
-      btn.addEventListener('click', () => this._doBulkAction(ba.action));
-      actions.appendChild(btn);
-    }
 
     const shortcuts = document.createElement('div');
     shortcuts.className = 'ms-review-shortcuts';
     const keys = [
       { k: '1', label: '通过' },
-      { k: '2', label: '删除' },
-      { k: '3', label: '暂缓' },
-      { k: '4', label: '标星' },
-      { k: '5', label: '备注' },
-      { k: '←→', label: '选择' },
-      { k: 'Enter', label: '详情' }
+      { k: '2', label: '驳回' },
+      { k: '\u2191\u2193', label: '选择' },
+      { k: 'Enter', label: '详情' },
+      { k: 'Esc', label: '取消选择' }
     ];
     for (const sk of keys) {
       const span = document.createElement('span');
@@ -123,131 +212,122 @@ export class ReviewMode {
     actions.appendChild(shortcuts);
     container.appendChild(actions);
 
-    const grid = document.createElement('div');
-    grid.className = 'ms-review-grid';
-    grid.id = 'ms-review-grid';
-    container.appendChild(grid);
+    const list = document.createElement('div');
+    list.className = 'ms-review-list';
+    list.id = 'ms-review-list';
+    container.appendChild(list);
 
-    await this._loadAndRender(grid, countDisplay);
-    this._attachKeyboard(grid);
+    await this._loadAndRender(list, countDisplay);
+    this._attachKeyboard(list);
   }
 
-  async _loadAndRender(grid, countDisplay) {
+  async _loadAndRender(list, countDisplay) {
     try {
-      const kanbanData = await this.api.loadKanbanData();
-      this.pendingAssets = kanbanData.pending;
+      const tasks = await this.api.listTasks();
+      this.pendingTasks = tasks.filter(t => t.status === 'pending_review');
 
       if (countDisplay) {
-        countDisplay.textContent = `${this.pendingAssets.length} 张待审核`;
+        countDisplay.textContent = `${this.pendingTasks.length} 个待审核任务`;
       }
 
-      if (this.pendingAssets.length === 0) {
-        grid.innerHTML = '<div class="ms-empty"><div class="ms-empty-icon">✓</div><div>所有素材已审核完毕</div></div>';
+      if (this.pendingTasks.length === 0) {
+        list.innerHTML = '<div class="ms-empty"><div class="ms-empty-icon">\u2713</div><div>所有任务已审核完毕</div></div>';
         return;
       }
 
-      const { groups, singletons } = this._groupAssets(this.pendingAssets);
-
-      for (const [key, groupAssets] of groups) {
-        const [workflow, seedBase] = key.split('|');
-        const groupEl = this._renderGroup(groupAssets, workflow, parseInt(seedBase, 10));
-        grid.appendChild(groupEl);
-      }
-
-      for (const { asset, index } of singletons) {
-        const card = this.mediaCard.render(asset, { showActions: false });
-        card.dataset.index = index;
-        card.addEventListener('click', () => this._selectIndex(index));
-        card.addEventListener('dblclick', () => this._openDetail(asset));
-        grid.appendChild(card);
+      for (let i = 0; i < this.pendingTasks.length; i++) {
+        const task = this.pendingTasks[i];
+        const card = this._renderTaskCard(task, i);
+        list.appendChild(card);
       }
 
       this._selectIndex(0);
     } catch (e) {
-      grid.innerHTML = `<div class="ms-empty"><div class="ms-empty-icon">⚠</div><div>加载失败: ${e.message}</div></div>`;
+      list.innerHTML = `<div class="ms-empty"><div class="ms-empty-icon">\u26A0</div><div>加载失败: ${e.message}</div></div>`;
     }
   }
 
-  _groupAssets(assets) {
-    const groupMap = new Map();
-    const singletons = [];
+  _renderTaskCard(task, index) {
+    const card = document.createElement('div');
+    card.className = 'ms-review-task-card';
+    card.dataset.index = index;
 
-    for (let i = 0; i < assets.length; i++) {
-      const asset = assets[i];
-      const workflow = asset.meta?.generation?.workflow;
-      const seed = asset.meta?.generation?.seed;
-      if (workflow != null && seed != null) {
-        const seedBase = Math.floor(seed / 1000) * 1000;
-        const key = `${workflow}|${seedBase}`;
-        if (!groupMap.has(key)) groupMap.set(key, []);
-        groupMap.get(key).push({ asset, index: i });
-      } else {
-        singletons.push({ asset, index: i });
-      }
-    }
-
-    const groups = new Map();
-    for (const [key, entries] of groupMap) {
-      if (entries.length >= 2) {
-        groups.set(key, entries);
-      } else {
-        singletons.push(entries[0]);
-      }
-    }
-
-    singletons.sort((a, b) => a.index - b.index);
-
-    return { groups, singletons };
-  }
-
-  _renderGroup(groupAssets, workflow, seedBase) {
-    const container = document.createElement('div');
-    container.className = 'ms-group-container';
+    const typeLabel = task.type === 'copywriting' ? '文案' : '素材';
+    const typeClass = task.type === 'copywriting' ? 'type-copywriting' : 'type-media';
 
     const header = document.createElement('div');
-    header.className = 'ms-group-header';
-    header.innerHTML = `
-      <span class="ms-group-arrow">▼</span>
-      <span class="ms-group-header-title">工作流: ${workflow || '未知'}</span>
-      <span>种子范围: ${seedBase}-${seedBase + 999}</span>
-      <span class="ms-group-count">共 ${groupAssets.length} 张相似素材</span>
-    `;
-    header.addEventListener('click', () => {
-      container.classList.toggle('ms-group-collapsed');
-    });
+    header.className = 'ms-task-card-header';
 
-    const subGrid = document.createElement('div');
-    subGrid.className = 'ms-group-grid';
+    const typeBadge = document.createElement('span');
+    typeBadge.className = `ms-task-type-badge ${typeClass}`;
+    typeBadge.textContent = typeLabel;
+    header.appendChild(typeBadge);
 
-    for (const { asset, index } of groupAssets) {
-      const card = this.mediaCard.render(asset, { showActions: false });
-      card.dataset.index = index;
-      card.addEventListener('click', () => this._selectIndex(index));
-      card.addEventListener('dblclick', () => this._openDetail(asset));
-      subGrid.appendChild(card);
+    if (task.mode) {
+      const modeBadge = document.createElement('span');
+      modeBadge.className = 'ms-task-mode-badge';
+      modeBadge.textContent = task.mode;
+      header.appendChild(modeBadge);
     }
 
-    container.appendChild(header);
-    container.appendChild(subGrid);
-    return container;
+    card.appendChild(header);
+
+    const brief = document.createElement('div');
+    brief.className = 'ms-task-brief';
+    brief.textContent = task.brief_summary || '(无摘要)';
+    card.appendChild(brief);
+
+    const meta = document.createElement('div');
+    meta.className = 'ms-task-meta';
+    if (task.created_at) {
+      const timeSpan = document.createElement('span');
+      timeSpan.textContent = `创建: ${formatDateTime(task.created_at)}`;
+      meta.appendChild(timeSpan);
+    }
+    card.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'ms-task-actions';
+
+    const approveBtn = document.createElement('button');
+    approveBtn.className = 'ms-btn btn-approve';
+    approveBtn.textContent = '通过';
+    approveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._quickAction('approved', '审核通过');
+    });
+    actions.appendChild(approveBtn);
+
+    const rejectBtn = document.createElement('button');
+    rejectBtn.className = 'ms-btn btn-reject';
+    rejectBtn.textContent = '驳回';
+    rejectBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const note = prompt('驳回原因(可选):');
+      this._quickAction('rejected', note || '审核驳回');
+    });
+    actions.appendChild(rejectBtn);
+
+    card.appendChild(actions);
+
+    card.addEventListener('click', () => this._selectIndex(index));
+    card.addEventListener('dblclick', () => this._openDetail(task));
+
+    return card;
   }
 
-  _attachKeyboard(grid) {
+  _attachKeyboard(list) {
     if (this._keyHandler) {
       document.removeEventListener('keydown', this._keyHandler);
     }
     this._keyHandler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-      const cards = qsa('.ms-media-card', grid);
-
       switch (e.key) {
-        case 'ArrowRight':
         case 'ArrowDown':
           e.preventDefault();
-          this._selectIndex(Math.min(this.selectedIndex + 1, this.pendingAssets.length - 1));
+          this._selectIndex(Math.min(this.selectedIndex + 1, this.pendingTasks.length - 1));
           break;
-        case 'ArrowLeft':
         case 'ArrowUp':
           e.preventDefault();
           this._selectIndex(Math.max(this.selectedIndex - 1, 0));
@@ -258,24 +338,15 @@ export class ReviewMode {
           break;
         case '2':
           e.preventDefault();
-          this._quickAction('deleted', '删除');
-          break;
-        case '3':
-          e.preventDefault();
-          this._quickAction('pending-review', '暂缓');
-          break;
-        case '4':
-          e.preventDefault();
-          this._toggleStar();
-          break;
-        case '5':
-          e.preventDefault();
-          this._addNote();
+          {
+            const note = prompt('驳回原因(可选):');
+            this._quickAction('rejected', note || '审核驳回');
+          }
           break;
         case 'Enter':
           e.preventDefault();
-          if (this.pendingAssets[this.selectedIndex]) {
-            this._openDetail(this.pendingAssets[this.selectedIndex]);
+          if (this.pendingTasks[this.selectedIndex]) {
+            this._openDetail(this.pendingTasks[this.selectedIndex]);
           }
           break;
         case 'Escape':
@@ -288,130 +359,108 @@ export class ReviewMode {
   }
 
   _selectIndex(index) {
-    const grid = document.getElementById('ms-review-grid');
-    if (!grid) return;
-    const cards = qsa('.ms-media-card', grid);
-    cards.forEach(c => c.classList.remove('selected', 'ms-selected-card'));
+    const list = document.getElementById('ms-review-list');
+    if (!list) return;
+    const cards = qsa('.ms-review-task-card', list);
+    cards.forEach(c => c.classList.remove('selected'));
     this.selectedIndex = index;
     if (cards[index]) {
-      cards[index].classList.add('selected', 'ms-selected-card');
+      cards[index].classList.add('selected');
       cards[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-
-    this.state.clearSelection();
-    if (this.pendingAssets[index]) {
-      this.state.toggleAssetSelection(this.pendingAssets[index].path);
-    }
-    this._updateBulkButtons();
   }
 
   _clearSelection() {
     this.selectedIndex = -1;
-    const grid = document.getElementById('ms-review-grid');
-    if (grid) {
-      qsa('.ms-media-card', grid).forEach(c => c.classList.remove('selected', 'ms-selected-card'));
+    const list = document.getElementById('ms-review-list');
+    if (list) {
+      qsa('.ms-review-task-card', list).forEach(c => c.classList.remove('selected'));
     }
-    this.state.clearSelection();
-    this._updateBulkButtons();
   }
 
   async _quickAction(newStatus, note) {
-    const asset = this.pendingAssets[this.selectedIndex];
-    if (!asset) return;
+    const task = this.pendingTasks[this.selectedIndex];
+    if (!task) return;
 
     try {
-      await changeStatus(this.api, asset.path, newStatus, note);
-      this.pendingAssets.splice(this.selectedIndex, 1);
-      this.selectedIndex = Math.min(this.selectedIndex, this.pendingAssets.length - 1);
+      await this.api.updateTaskStatus(task.uuid, newStatus, note);
+      this.pendingTasks.splice(this.selectedIndex, 1);
+      this.selectedIndex = Math.min(this.selectedIndex, this.pendingTasks.length - 1);
 
-      const grid = document.getElementById('ms-review-grid');
+      const list = document.getElementById('ms-review-list');
       const countEl = document.getElementById('ms-review-count');
-      if (grid) {
-        empty(grid);
-        this._loadAndRender(grid, countEl);
+      if (list) {
+        empty(list);
+        this._loadAndRender(list, countEl);
       }
     } catch (e) {
       console.error('Review action failed:', e);
     }
   }
 
-  async _toggleStar() {
-    const asset = this.pendingAssets[this.selectedIndex];
-    if (!asset) return;
+  async _openDetail(task) {
+    const overlay = document.createElement('div');
+    overlay.className = 'ms-review-detail-overlay';
+
+    const panel = document.createElement('div');
+    panel.className = 'ms-review-detail-panel';
+
+    const typeLabel = task.type === 'copywriting' ? '文案任务' : '素材任务';
+
+    let briefContent = '';
     try {
-      const { readMeta, writeMeta } = await import('./utils/meta.js');
-      const meta = await readMeta(this.api, asset.path);
-      if (meta) {
-        meta.is_starred = !meta.is_starred;
-        await writeMeta(this.api, asset.path, meta);
-        const grid = document.getElementById('ms-review-grid');
-        if (grid) {
-          empty(grid);
-          const countEl = document.getElementById('ms-review-count');
-          this._loadAndRender(grid, countEl);
-        }
-      }
-    } catch (e) {
-      console.error('Toggle star failed:', e);
-    }
-  }
-
-  async _addNote() {
-    const asset = this.pendingAssets[this.selectedIndex];
-    if (!asset) return;
-    const note = prompt('添加审核备注:');
-    if (!note) return;
-    try {
-      const { readMeta, writeMeta } = await import('./utils/meta.js');
-      const meta = await readMeta(this.api, asset.path);
-      if (meta) {
-        meta.review = meta.review || {};
-        meta.review.note = (meta.review.note || '') + (meta.review.note ? '; ' : '') + note;
-        meta.review.reviewed_at = new Date().toISOString();
-        await writeMeta(this.api, asset.path, meta);
-      }
-    } catch (e) {
-      console.error('Add note failed:', e);
-    }
-  }
-
-  _openDetail(asset) {
-    const detail = new MediaDetail(this.api, this.state);
-    detail.show(asset);
-  }
-
-  async _doBulkAction(action) {
-    const selected = this.state.getKey('selectedAssets');
-    if (selected.length === 0) return;
-
-    for (const path of selected) {
-      try {
-        switch (action) {
-          case 'approve':
-            await changeStatus(this.api, path, 'approved', '批量通过');
-            break;
-          case 'delete':
-            await changeStatus(this.api, path, 'deleted', '批量删除');
-            break;
-        }
-      } catch (e) {
-        console.error(`Bulk ${action} failed for ${path}:`, e);
-      }
+      briefContent = await this.api.readTaskBrief(task.uuid);
+    } catch {
+      briefContent = '(无法读取简报)';
     }
 
-    const grid = document.getElementById('ms-review-grid');
-    const countEl = document.getElementById('ms-review-count');
-    if (grid) {
-      empty(grid);
-      this._loadAndRender(grid, countEl);
-    }
-  }
+    panel.innerHTML = `
+      <h3>${typeLabel} - ${task.brief_summary || '无标题'}</h3>
+      <div class="ms-detail-section">
+        <div class="ms-detail-label">任务类型</div>
+        <div class="ms-detail-value">${task.type === 'copywriting' ? '文案' : '素材'}</div>
+      </div>
+      <div class="ms-detail-section">
+        <div class="ms-detail-label">模式</div>
+        <div class="ms-detail-value">${task.mode || '默认'}</div>
+      </div>
+      <div class="ms-detail-section">
+        <div class="ms-detail-label">创建时间</div>
+        <div class="ms-detail-value">${formatDateTime(task.created_at)}</div>
+      </div>
+      <div class="ms-detail-section">
+        <div class="ms-detail-label">简报内容</div>
+        <div class="ms-detail-value">${this._escapeHtml(briefContent)}</div>
+      </div>
+      ${task.type === 'copywriting' ? `
+      <div class="ms-detail-section">
+        <div class="ms-detail-label">文案预览</div>
+        <div class="ms-detail-value">在文案库中查看完整内容</div>
+      </div>` : `
+      <div class="ms-detail-section">
+        <div class="ms-detail-label">预期产出</div>
+        <div class="ms-detail-value">素材图片/视频</div>
+      </div>`}
+    `;
 
-  _updateBulkButtons() {
-    const selected = this.state.getKey('selectedAssets');
-    ['approve', 'delete', 'star', 'schedule'].forEach(action => {
-      const btn = document.getElementById(`ms-bulk-${action}`);
-      if (btn) btn.disabled = selected.length === 0;
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'ms-detail-close';
+    closeBtn.textContent = '关闭';
+    closeBtn.addEventListener('click', () => overlay.remove());
+    panel.appendChild(closeBtn);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
     });
+
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+  }
+
+  _escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 }

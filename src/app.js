@@ -5,12 +5,12 @@ import Sidebar from './modules/sidebar.js';
 import { KanbanBoard } from './modules/KanbanBoard.js';
 import { ReviewMode } from './modules/ReviewMode.js';
 import { MediaDetail } from './modules/components/MediaDetail.js';
-import { PackageEditor } from './modules/PackageEditor.js';
 import { CalendarView } from './modules/CalendarView.js';
-import { StatsDashboard } from './modules/StatsDashboard.js';
-import { GenerationConsole } from './modules/GenerationConsole.js';
-import { ThemeStrategy } from './modules/ThemeStrategy.js';
 import { MediaArchive } from './modules/MediaArchive.js';
+import { TasksView } from './modules/TasksView.js';
+import { PublishView } from './modules/PublishView.js';
+import { CopywritingView } from './modules/CopywritingView.js';
+import { PlatformConfig } from './modules/PlatformConfig.js';
 import { show, hide, empty } from './modules/utils/dom.js';
 
 const DIRS_TO_CREATE = [
@@ -18,12 +18,8 @@ const DIRS_TO_CREATE = [
   'configs/platforms',
   'configs/workflows',
   'assets',
-  'pipeline/01-generating',
-  'pipeline/02-pending-review',
-  'pipeline/03-approved',
-  'pipeline/04-scheduled',
-  'pipeline/05-published',
-  'archive',
+  'tasks',
+  'copywriting',
   '.trash',
   '.index'
 ];
@@ -36,22 +32,24 @@ const ICONS = {
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2h10l1 4H2l1-4z"/><path d="M2 6h12v8H2z"/><path d="M6 10h4"/></svg>',
   resources:
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l6-3 6 3-6 3-6-3z"/><path d="M2 8l6 3 6-3"/><path d="M2 11l6 3 6-3"/></svg>',
-  customize:
+  operations:
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M3.5 12.5l1.4-1.4M11.1 4.9l1.4-1.4"/></svg>',
   kanban:
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="4" height="12" rx="1"/><rect x="6" y="3" width="4" height="11" rx="1"/><rect x="11" y="1" width="4" height="13" rx="1"/></svg>',
   review:
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4L6 11l-3-3"/></svg>',
-  generation:
-    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3,2 14,8 3,14" fill="currentColor" fill-opacity=".15"/></svg>',
+  tasks:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="1"/><path d="M5 8l2 2 4-4"/></svg>',
+  publish:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v10"/><path d="M4 5l4-4 4 4"/><path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></svg>',
   calendar:
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 7h12"/><path d="M5 1v3M11 1v3"/></svg>',
-  packageEditor:
-    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1l6 3v8l-6 3-6-3V4l6-3z"/><path d="M8 8l6-3M8 8L2 5M8 8v7"/></svg>',
-  dashboard:
-    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="4" height="8" rx="1"/><rect x="6" y="3" width="4" height="11" rx="1"/><rect x="11" y="1" width="4" height="13" rx="1"/></svg>',
   archive:
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-1 10H3L2 3z"/><path d="M6 7h4"/></svg>',
+  copywriting:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>',
+  platforms:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>',
   themes:
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12 4 4 0 0 0 0-8"/></svg>',
   init:
@@ -66,7 +64,7 @@ const MENU_GROUPS = [
     items: [
       { hash: 'kanban', label: '看板', icon: ICONS.kanban },
       { hash: 'review', label: '审核', icon: ICONS.review },
-      { hash: 'generation', label: '生成', icon: ICONS.generation }
+      { hash: 'tasks', label: '任务', icon: ICONS.tasks }
     ]
   },
   {
@@ -74,8 +72,7 @@ const MENU_GROUPS = [
     label: '发布管理',
     icon: ICONS.publishing,
     items: [
-      { hash: 'calendar', label: '日历', icon: ICONS.calendar },
-      { hash: 'package-editor', label: '发布包', icon: ICONS.packageEditor }
+      { hash: 'publish', label: '发布', icon: ICONS.publish }
     ]
   },
   {
@@ -83,17 +80,18 @@ const MENU_GROUPS = [
     label: '资源管理',
     icon: ICONS.resources,
     items: [
-      { hash: 'dashboard', label: '数据', icon: ICONS.dashboard },
-      { hash: 'archive', label: '素材库', icon: ICONS.archive }
+      { hash: 'archive', label: '素材库', icon: ICONS.archive },
+      { hash: 'copywriting', label: '图文库', icon: ICONS.copywriting },
+      { hash: 'calendar', label: '日历', icon: ICONS.calendar }
     ]
   },
   {
-    id: 'customize',
-    label: '定制化',
-    icon: ICONS.customize,
+    id: 'operations',
+    label: '运营配置',
+    icon: ICONS.operations,
     items: [
-      { hash: 'themes', label: '主题', icon: ICONS.themes },
-      { hash: 'init', label: '初始化', icon: ICONS.init }
+      { hash: 'init', label: '初始化', icon: ICONS.init },
+      { hash: 'platforms', label: '平台配置', icon: ICONS.platforms }
     ]
   }
 ];
@@ -231,20 +229,20 @@ class MediaStudioApp {
 
     this.modules.kanban = new KanbanBoard(sharedDeps);
     this.modules.review = new ReviewMode(sharedDeps);
-    this.modules['package-editor'] = new PackageEditor(sharedDeps);
+    this.modules.tasks = new TasksView(sharedDeps);
+    this.modules.publish = new PublishView(sharedDeps);
+    this.modules.copywriting = new CopywritingView(sharedDeps);
+    this.modules.platforms = new PlatformConfig(sharedDeps);
     this.modules.calendar = new CalendarView(sharedDeps);
-    this.modules.dashboard = new StatsDashboard(sharedDeps);
-    this.modules.generation = new GenerationConsole(sharedDeps);
-    this.modules.themes = new ThemeStrategy(sharedDeps);
     this.modules.archive = new MediaArchive(sharedDeps);
 
     this.router.register('kanban', renderInContainer('kanban'));
     this.router.register('review', renderInContainer('review'));
-    this.router.register('package-editor', renderInContainer('package-editor'));
+    this.router.register('tasks', renderInContainer('tasks'));
+    this.router.register('publish', renderInContainer('publish'));
+    this.router.register('copywriting', renderInContainer('copywriting'));
+    this.router.register('platforms', renderInContainer('platforms'));
     this.router.register('calendar', renderInContainer('calendar'));
-    this.router.register('dashboard', renderInContainer('dashboard'));
-    this.router.register('generation', renderInContainer('generation'));
-    this.router.register('themes', renderInContainer('themes'));
     this.router.register('archive', renderInContainer('archive'));
 
     // Init view — no module class, rendered directly
@@ -314,8 +312,8 @@ class MediaStudioApp {
       <div class="ms-init-view">
         <div class="ms-init-tutorial">
           <h2>🎬 欢迎使用 Media Studio</h2>
-          <p>Media Studio 是自媒体内容生产驾驶舱，需要在您的工作空间中创建目录结构来管理素材和流水线。</p>
-          <p>工作空间采用四层结构：<strong>configs</strong>（配置）、<strong>assets</strong>（素材）、<strong>pipeline</strong>（流水线）、<strong>archive</strong>（归档）。</p>
+          <p>Media Studio 是自媒体内容生产驾驶舱，需要在您的工作空间中创建目录结构来管理素材、任务和图文内容。</p>
+          <p>工作空间采用以下结构：<strong>configs</strong>（配置）、<strong>assets</strong>（素材）、<strong>tasks</strong>（任务）、<strong>copywriting</strong>（图文库）。</p>
           <p>工作空间路径：</p>
           <div class="ms-init-path">${this.api.workspacePath || '未知'}</div>
           <p>将创建以下目录：</p>
