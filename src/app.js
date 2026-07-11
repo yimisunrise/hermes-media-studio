@@ -26,6 +26,73 @@ const DIRS_TO_CREATE = [
   '.trash'
 ];
 
+/* ── Inline SVG icons (no emoji, reliably renderable) ── */
+const ICONS = {
+  production:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="5" height="4" rx="1"/><rect x="10" y="3" width="5" height="4" rx="1"/><rect x="5.5" y="9" width="5" height="4" rx="1"/><path d="M6 5h4" opacity=".4"/></svg>',
+  publishing:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2h10l1 4H2l1-4z"/><path d="M2 6h12v8H2z"/><path d="M6 10h4"/></svg>',
+  resources:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l6-3 6 3-6 3-6-3z"/><path d="M2 8l6 3 6-3"/><path d="M2 11l6 3 6-3"/></svg>',
+  customize:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M3.5 12.5l1.4-1.4M11.1 4.9l1.4-1.4"/></svg>',
+  kanban:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="4" height="12" rx="1"/><rect x="6" y="3" width="4" height="11" rx="1"/><rect x="11" y="1" width="4" height="13" rx="1"/></svg>',
+  review:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4L6 11l-3-3"/></svg>',
+  generation:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3,2 14,8 3,14" fill="currentColor" fill-opacity=".15"/></svg>',
+  calendar:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 7h12"/><path d="M5 1v3M11 1v3"/></svg>',
+  packageEditor:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1l6 3v8l-6 3-6-3V4l6-3z"/><path d="M8 8l6-3M8 8L2 5M8 8v7"/></svg>',
+  dashboard:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="4" height="8" rx="1"/><rect x="6" y="3" width="4" height="11" rx="1"/><rect x="11" y="1" width="4" height="13" rx="1"/></svg>',
+  archive:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-1 10H3L2 3z"/><path d="M6 7h4"/></svg>',
+  themes:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12 4 4 0 0 0 0-8"/></svg>',
+};
+
+const MENU_GROUPS = [
+  {
+    id: 'production',
+    label: '生产流程',
+    icon: ICONS.production,
+    items: [
+      { hash: 'kanban', label: '看板', icon: ICONS.kanban },
+      { hash: 'review', label: '审核', icon: ICONS.review },
+      { hash: 'generation', label: '生成', icon: ICONS.generation }
+    ]
+  },
+  {
+    id: 'publishing',
+    label: '发布管理',
+    icon: ICONS.publishing,
+    items: [
+      { hash: 'calendar', label: '日历', icon: ICONS.calendar },
+      { hash: 'package-editor', label: '发布包', icon: ICONS.packageEditor }
+    ]
+  },
+  {
+    id: 'resources',
+    label: '资源管理',
+    icon: ICONS.resources,
+    items: [
+      { hash: 'dashboard', label: '数据', icon: ICONS.dashboard },
+      { hash: 'archive', label: '素材库', icon: ICONS.archive }
+    ]
+  },
+  {
+    id: 'customize',
+    label: '定制化',
+    icon: ICONS.customize,
+    items: [
+      { hash: 'themes', label: '主题', icon: ICONS.themes }
+    ]
+  }
+];
+
 class MediaStudioApp {
   constructor() {
     this.api = new WorkspaceAPI();
@@ -33,16 +100,15 @@ class MediaStudioApp {
     this.router = new Router(this.state);
     this.modules = {};
     this.container = null;
-    this.navBar = null;
+    this.menuPanel = null;
   }
 
   async init(containerEl) {
     this.container = containerEl;
     this.container.className = 'ms-app';
-    this.container.style.display = 'flex';
 
-    this.navBar = this._createNavBar();
-    this.container.appendChild(this.navBar);
+    const panel = this._createPanel();
+    this.container.appendChild(panel);
 
     const viewContainer = document.createElement('div');
     viewContainer.id = 'media-studio-view-container';
@@ -64,19 +130,10 @@ class MediaStudioApp {
         return;
       }
 
-      const initialized = await this.api.checkInitialized();
-      if (!initialized) {
-        const didInit = await this._showSetupDialog();
-        if (didInit) {
-          const stillInitialized = await this.api.checkInitialized();
-          if (!stillInitialized) {
-            this._showEmpty('工作空间初始化失败，请重试。');
-            return;
-          }
-        } else {
-          this._showEmpty('工作空间未初始化。点击上方按钮或重新打开 Media Studio 以初始化。');
-          return;
-        }
+      // Non-blocking: check initialization but don't block the UI
+      this._workspaceReady = await this.api.checkInitialized();
+      if (!this._workspaceReady) {
+        this._showInitTip(viewContainer);
       }
     } catch (e) {
       this._showError('初始化失败: ' + e.message);
@@ -89,40 +146,58 @@ class MediaStudioApp {
     this._initSidebar();
   }
 
-  _createNavBar() {
-    const nav = document.createElement('nav');
-    nav.className = 'ms-toolbar';
+  _createPanel() {
+    this.menuPanel = document.createElement('div');
+    this.menuPanel.className = 'ms-panel';
+    const panel = this.menuPanel;
 
-    const title = document.createElement('span');
-    title.className = 'ms-toolbar-title';
-    title.textContent = '🎬 Media Studio';
-    nav.appendChild(title);
+    const head = document.createElement('div');
+    head.className = 'ms-panel-head';
+    head.textContent = '🎬 Media Studio';
+    panel.appendChild(head);
 
-    const actions = document.createElement('div');
-    actions.className = 'ms-toolbar-actions';
+    const menu = document.createElement('div');
+    menu.className = 'ms-menu';
 
-    const links = [
-      { hash: '#kanban', label: '看板' },
-      { hash: '#review', label: '审核' },
-      { hash: '#calendar', label: '日历' },
-      { hash: '#dashboard', label: '数据' },
-      { hash: '#package-editor', label: '发布包' },
-      { hash: '#generation', label: '生成' },
-      { hash: '#themes', label: '主题' },
-      { hash: '#archive', label: '素材库' }
-    ];
+    for (const group of MENU_GROUPS) {
+      const groupEl = document.createElement('div');
+      groupEl.className = 'ms-menu-group';
+      groupEl.dataset.group = group.id;
 
-    for (const link of links) {
-      const btn = document.createElement('button');
-      btn.className = 'ms-btn ms-btn-sm';
-      btn.textContent = link.label;
-      btn.addEventListener('click', () => this.router.navigate(link.hash.slice(1)));
-      if (window.location.hash === link.hash) btn.style.borderColor = 'var(--ms-accent)';
-      actions.appendChild(btn);
+      const header = document.createElement('button');
+      header.className = 'ms-menu-group-header';
+      header.innerHTML = `
+        <span class="ms-menu-group-icon">${group.icon}</span>
+        <span class="ms-menu-group-label">${group.label}</span>
+        <span class="ms-menu-chevron">▶</span>
+      `;
+
+      const body = document.createElement('div');
+      body.className = 'ms-menu-group-body';
+
+      for (const item of group.items) {
+        const itemEl = document.createElement('button');
+        itemEl.className = 'ms-menu-item';
+        itemEl.dataset.view = item.hash;
+        itemEl.innerHTML = `
+          <span class="ms-menu-item-icon">${item.icon}</span>
+          <span>${item.label}</span>
+        `;
+        itemEl.addEventListener('click', () => this.router.navigate(item.hash));
+        body.appendChild(itemEl);
+      }
+
+      header.addEventListener('click', () => {
+        groupEl.classList.toggle('expanded');
+      });
+
+      groupEl.appendChild(header);
+      groupEl.appendChild(body);
+      menu.appendChild(groupEl);
     }
 
-    nav.appendChild(actions);
-    return nav;
+    panel.appendChild(menu);
+    return panel;
   }
 
   _initModules(viewContainer) {
@@ -166,18 +241,13 @@ class MediaStudioApp {
   }
 
   _updateNavActive(viewName) {
-    const btns = this.navBar.querySelectorAll('.ms-btn');
-    btns.forEach(btn => btn.style.borderColor = '');
-    const activeMap = {
-      kanban: '看板', review: '审核', calendar: '日历', dashboard: '数据',
-      'package-editor': '发布包', generation: '生成', themes: '主题', archive: '素材库'
-    };
-    const label = activeMap[viewName];
-    if (label) {
-      btns.forEach(btn => {
-        if (btn.textContent === label) btn.style.borderColor = 'var(--ms-accent)';
-      });
-    }
+    this.menuPanel.querySelectorAll('.ms-menu-item').forEach(el => el.classList.remove('active'));
+    const activeItem = this.menuPanel.querySelector(`.ms-menu-item[data-view="${viewName}"]`);
+    if (activeItem) activeItem.classList.add('active');
+    this.menuPanel.querySelectorAll('.ms-menu-group').forEach(g => {
+      const hasActive = !!g.querySelector(`.ms-menu-item[data-view="${viewName}"]`);
+      g.classList.toggle('expanded', hasActive);
+    });
   }
 
   _initSidebar() {
@@ -206,6 +276,34 @@ class MediaStudioApp {
   }
 
   /** Show setup dialog prompting user to initialize workspace */
+  /** Show a non-blocking init tip in the view area instead of blocking the UI */
+  _showInitTip(container) {
+    container.innerHTML = `
+      <div class="ms-init-tip">
+        <span class="ms-init-tip-icon">🛠️</span>
+        <span class="ms-init-tip-text">工作空间尚未初始化，部分功能不可用。</span>
+        <button class="ms-btn ms-btn-primary ms-init-tip-btn" id="ms-init-now-btn">立即初始化</button>
+        <button class="ms-btn ms-init-tip-btn" id="ms-init-later-btn">稍后</button>
+      </div>
+    `;
+
+    container.querySelector('#ms-init-now-btn').addEventListener('click', async () => {
+      const didInit = await this._showSetupDialog();
+      if (didInit) {
+        this._workspaceReady = true;
+        empty(container);
+        const hash = window.location.hash;
+        if (hash && hash !== '#') {
+          this.router.navigate(hash.slice(1));
+        }
+      }
+    });
+
+    container.querySelector('#ms-init-later-btn').addEventListener('click', () => {
+      empty(container);
+    });
+  }
+
   _showSetupDialog() {
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
@@ -296,8 +394,9 @@ class MediaStudioApp {
   }
 
   _showEmpty(msg) {
-    if (this.container) {
-      this.container.innerHTML = `<div class="ms-empty"><div class="ms-empty-icon">📂</div><div>${msg}</div></div>`;
+    const vc = document.getElementById('media-studio-view-container');
+    if (vc) {
+      vc.innerHTML = `<div class="ms-empty"><div class="ms-empty-icon">📂</div><div>${msg}</div></div>`;
     }
   }
 }
