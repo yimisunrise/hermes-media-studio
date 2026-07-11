@@ -1,0 +1,33 @@
+{
+  "media": {
+    "label": "素材任务",
+    "states": ["initialized", "generating", "pending_review", "approved", "rejected"],
+    "kanban_states": ["generating", "pending_review", "approved"],
+    "transitions": {
+      "initialized": ["generating"],
+      "generating": ["pending_review"],
+      "pending_review": ["approved", "rejected"],
+      "approved": [],
+      "rejected": []
+    },
+    "final_states": ["approved", "rejected"],
+    "color": "#4a90d9"
+  },
+  "copywriting": {
+    "label": "文案任务",
+    "states": ["initialized", "generating", "pending_review", "approved", "scheduled", "published", "archived", "rejected"],
+    "kanban_states": ["generating", "pending_review", "approved", "scheduled", "published"],
+    "transitions": {
+      "initialized": ["generating"],
+      "generating": ["pending_review"],
+      "pending_review": ["approved", "rejected"],
+      "approved": ["scheduled"],
+      "scheduled": ["published"],
+      "published": ["archived"],
+      "archived": [],
+      "rejected": []
+    },
+    "final_states": ["approved", "archived", "rejected"],
+    "color": "#27ae60"
+  }
+}
