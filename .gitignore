@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE/Editor
+.idea/
+.vscode/
+*.sublime-*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Workspace generated content
+workspace/.media-studio/
+workspace/archive/
+workspace/pipeline/
+workspace/platforms/
+workspace/themes/
+workspace/workflows/
+workspace/.trash/
+
+# OpenCode internal (handled by .opencode/.gitignore)
+.opencode/node_modules/
+.opencode/package-lock.json
