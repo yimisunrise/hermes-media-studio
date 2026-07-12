@@ -13,6 +13,8 @@ import { CopywritingView } from './modules/CopywritingView.js';
 import { PlatformConfig } from './modules/PlatformConfig.js';
 import { show, hide, empty } from './modules/utils/dom.js';
 
+const APP_VERSION = '1.0.0';
+
 const DIRS_TO_CREATE = [
   'configs/themes',
   'configs/platforms',
@@ -266,7 +268,12 @@ class MediaStudioApp {
   _initSidebar() {
     Sidebar.init();
 
-    document.addEventListener('ms:activated', () => {
+    document.addEventListener('ms:activated', async () => {
+      // Re-detect workspace and session — workspace switch or new chat
+      // session may have changed them since last activation
+      this.api.detectWorkspace();
+      this._workspaceReady = await this.api.checkInitialized();
+
       const currentHash = window.location.hash;
       if (!currentHash || currentHash === '#') {
         this.router.navigate('kanban');
@@ -370,6 +377,16 @@ class MediaStudioApp {
     container.insertBefore(banner, container.firstChild);
   }
 
+  /** Write initialization marker file .index/init.json after successful
+   *  directory creation. Records app version and directory snapshot. */
+  async _writeInitMarker() {
+    await this.api.writeJSON('.index/init.json', {
+      version: APP_VERSION,
+      created_at: new Date().toISOString(),
+      directories: DIRS_TO_CREATE
+    });
+  }
+
   /** Create workspace directory structure, showing progress */
   async _createWorkspaceDirectories(progressEl) {
     let allOk = true;
@@ -380,6 +397,14 @@ class MediaStudioApp {
         await this.api.mkdir(dir);
       } catch (e) {
         console.error('mkdir failed:', dir, e);
+        allOk = false;
+      }
+    }
+    if (allOk) {
+      try {
+        await this._writeInitMarker();
+      } catch (e) {
+        console.error('write init.json failed:', e);
         allOk = false;
       }
     }

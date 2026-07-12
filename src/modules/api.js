@@ -19,22 +19,32 @@ class WorkspaceAPI {
     this.ready = false;
     this._sessionId = null;
     this._workspacePath = null;
+    this._usingStandaloneSession = false;
   }
 
-  /** Current session ID from WebUI global state */
+  /** Current session ID from WebUI global state.
+    *  Always reads from S.session — same workspace may have different chat sessions
+    *  with distinct session_ids. Falls back to last known value when unavailable.
+    *
+    *  When _usingStandaloneSession is true, returns the standalone session id
+    *  (created by tryRefreshSession) instead of S.session.session_id, because
+    *  S.session may still hold a stale value during session refresh. */
   get sessionId() {
-    if (this._sessionId) return this._sessionId;
+    if (this._usingStandaloneSession) return this._sessionId;
     if (S?.session?.session_id) {
       this._sessionId = S.session.session_id;
+      return this._sessionId;
     }
     return this._sessionId;
   }
 
-  /** Current workspace absolute path */
+  /** Current workspace absolute path.
+   *  Always reads from S.session to reflect workspace switches. Falls back to
+   *  last known value when unavailable. */
   get workspacePath() {
-    if (this._workspacePath) return this._workspacePath;
     if (S?.session?.workspace) {
       this._workspacePath = S.session.workspace;
+      return this._workspacePath;
     }
     return this._workspacePath;
   }
@@ -44,6 +54,7 @@ class WorkspaceAPI {
     if (S?.session) {
       this._sessionId = S.session.session_id || null;
       this._workspacePath = S.session.workspace || null;
+      this._usingStandaloneSession = false;
       return true;
     }
     return false;
@@ -89,6 +100,7 @@ class WorkspaceAPI {
     if (data?.session?.session_id) {
       this._sessionId = data.session.session_id;
       this._workspacePath = data.session.workspace || null;
+      this._usingStandaloneSession = true;
       return true;
     }
     return false;
@@ -286,25 +298,28 @@ class WorkspaceAPI {
   }
 
   /** Check if workspace structure is initialized.
-   *  Probes for .index/manifest.json as the canonical initialization marker.
-   *  If the check fails with 404 (likely stale session), attempts a
-   *  one-shot session refresh and retries exactly once. */
+    *  Probes for .index/init.json as the canonical initialization marker.
+    *  On any HTTP error (not just 404) attempts a one-shot session refresh and
+    *  retries exactly once — session may be stale. Network errors (TypeError)
+    *  skip retry as they won't benefit from a new session. */
   async checkInitialized() {
     try {
-      await this.read('.index/manifest.json');
+      await this.read('.index/init.json');
       return true;
     } catch (err) {
-      if (err.message?.includes('404')) {
+      // Any HTTP error (4xx, 5xx) could indicate stale session — try refresh
+      if (err.message?.match(/\b[4-5]\d{2}\b/)) {
         const refreshed = await this.tryRefreshSession();
         if (refreshed) {
           try {
-            await this.read('.index/manifest.json');
+            await this.read('.index/init.json');
             return true;
           } catch {
             return false;
           }
         }
       }
+      // Network errors (TypeError) — refresh won't help, return false immediately
       return false;
     }
   }
