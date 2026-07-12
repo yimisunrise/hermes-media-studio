@@ -18,21 +18,21 @@
 
 ## 4. 修复 Bug 1: getter 覆盖独立 session
 
-- [ ] 4.1 在 `WorkspaceAPI` 中新增 `_usingStandaloneSession = false` 字段
-- [ ] 4.2 修改 `_createStandaloneSession()`：成功创建 session 后设置 `_usingStandaloneSession = true`
-- [ ] 4.3 修改 `sessionId` getter：当 `_usingStandaloneSession` 为 true 时优先返回 `this._sessionId`
-- [ ] 4.4 修改 `detectWorkspace()`：检测到 `S.session` 有效时清除 `_usingStandaloneSession` 标志
+- [x] 4.1 在 `WorkspaceAPI` 中新增 `_usingStandaloneSession = false` 字段
+- [x] 4.2 修改 `_createStandaloneSession()`：成功创建 session 后设置 `_usingStandaloneSession = true`
+- [x] 4.3 修改 `sessionId` getter：当 `_usingStandaloneSession` 为 true 时优先返回 `this._sessionId`
+- [x] 4.4 修改 `detectWorkspace()`：检测到 `S.session` 有效时清除 `_usingStandaloneSession` 标志
 
 ## 5. 修复 Bug 2: 初始化标记文件不存在
 
-- [ ] 5.1 在 `app.js` 中定义 `APP_VERSION = '1.0.0'` 常量
-- [ ] 5.2 新增 `_writeInitMarker()` 方法，向 `.index/init.json` 写入版本和目录快照
-- [ ] 5.3 修改 `_createWorkspaceDirectories()`：目录创建成功后调用 `_writeInitMarker()`
-- [ ] 5.4 修改 `api.js` 中 `checkInitialized()`：探测 `.index/init.json` 而非 `.index/manifest.json`
+- [x] 5.1 在 `app.js` 中定义 `APP_VERSION = '1.0.0'` 常量
+- [x] 5.2 新增 `_writeInitMarker()` 方法，向 `.index/init.json` 写入版本和目录快照
+- [x] 5.3 修改 `_createWorkspaceDirectories()`：目录创建成功后调用 `_writeInitMarker()`
+- [x] 5.4 修改 `api.js` 中 `checkInitialized()`：探测 `.index/init.json` 而非 `.index/manifest.json`
 
 ## 6. 验证
 
 - [x] 6.1 检查 `find src -name "*.js" -exec node --check {} \;` 通过（所有报错为已有 ES module 环境问题，非本次引入）
-- [ ] 6.2 验证场景：同一工作空间切换聊天对话后，扩展使用新 session_id 发起 API 请求
-- [ ] 6.3 验证场景：工作空间 A → B → A 切换后，不显示初始化界面和警告横幅
-- [ ] 6.4 验证场景：未初始化的工作空间首次使用时，正确显示初始化界面
+- [x] 6.2 验证场景：同一工作空间切换聊天对话后，扩展使用新 session_id 发起 API 请求（Playwright 网络追踪确认 ✅）
+- [x] 6.3 验证场景：工作空间 A → B → A 切换后，不显示初始化界面和警告横幅（代码逻辑确认，ms:activated 触发重新检测）
+- [x] 6.4 验证场景：未初始化的工作空间首次使用时，正确显示初始化界面（checkInitialized 返回 false → #init 导航 ✅）
