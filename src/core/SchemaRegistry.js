@@ -256,7 +256,7 @@ export class SchemaRegistry {
     // Update db.json
     const dbMeta = await this._readDbMeta(database);
     dbMeta.tables = dbMeta.tables || [];
-    dbMeta.tables.push({ id, label: schema.label });
+    dbMeta.tables.push({ id, label: schema.label, fieldCount: (schema.fields || []).length });
     await this._writeDbMeta(database, dbMeta);
 
     // Register in system.table table
@@ -275,8 +275,20 @@ export class SchemaRegistry {
     if (!schema) throw new Error(`Table "${database}.${id}" not found.`);
 
     const updated = { ...schema, ...updates, id };
+    updated.fields = updates.fields !== undefined ? updates.fields : schema.fields;
     await this.api.writeJSON(`.database/${database}/${id}/schema.json`, updated);
     this._tableCache[`${database}.${id}`] = updated;
+
+    try {
+      const dbMeta = await this._readDbMeta(database);
+      const tblEntry = (dbMeta.tables || []).find(t => t.id === id);
+      if (tblEntry) {
+        tblEntry.fieldCount = (updated.fields || []).length;
+        await this._writeDbMeta(database, dbMeta);
+      }
+    } catch {
+    }
+
     return updated;
   }
 

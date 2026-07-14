@@ -169,7 +169,7 @@ export class DatabaseManager {
            data-action="select-table">
         <span class="ms-db-item-icon">${ICON_TABLE}</span>
         <span class="ms-db-item-label">${this._esc(t.label || t.id)}</span>
-        <span class="ms-db-item-count">${t.fields ? t.fields.length : 0} 字段</span>
+        <span class="ms-db-item-count">${t.fieldCount ?? 0} 字段</span>
         <button class="ms-btn-icon ms-db-edit-btn"
                 data-action="edit-table" data-db="${db}" data-table="${t.id}"
                 title="编辑表">✎</button>
