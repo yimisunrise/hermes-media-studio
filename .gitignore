@@ -43,3 +43,4 @@ workspace/.trash/
 # OpenCode internal (handled by .opencode/.gitignore)
 .opencode/node_modules/
 .opencode/package-lock.json
+.playwright-mcp/
