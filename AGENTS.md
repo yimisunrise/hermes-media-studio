@@ -20,31 +20,44 @@ bash -n src/scripts/install.sh
 
 ```
 src/
-├── app.js              # 入口：启动 → 探测 API → 检测工作空间 → 初始化模块
+├── app.js              # 入口：启动 → 探测 API → 检测工作空间 → 初始化视图
 ├── app.css             # 全部样式（ms-* 命名空间）
-├── modules/
+├── lib/                # 基础设施（应用生命周期 + 共享服务）
 │   ├── api.js          # WorkspaceAPI — 通过 WebUI 端点进行文件 CRUD
 │   ├── state.js        # AppState — 内存事件发射器（SSOT 是工作空间文件）
 │   ├── router.js       # 基于 hash 的路由（#kanban, #review 等）
-│   ├── sidebar.js      # 注入 Rail 按钮 + 切换宿主面板
-│   ├── KanbanBoard.js  # 任务看板（任务卡片状态墙，由 task-lifecycle.json 驱动列渲染）
-│   ├── ReviewMode.js   # 审批（支持素材任务和文案任务的不同渲染）
-│   ├── TasksView.js    # 任务列表（CRUD + 手工状态变更 + Agent 模式）
-│   ├── PublishView.js  # 发布表单 + 发布记录清单
-│   ├── CopywritingView.js # 图文库（Markdown + meta sidecar 存储）
-│   ├── PlatformConfig.js  # 平台配置（CRUD + 自定义发布类型）
-│   ├── CalendarView.js # 日历（统计每日素材/图文成果数量）
-│   ├── MediaArchive.js # 素材库
-│   ├── components/
-│   │   ├── MediaCard.js
-│   │   ├── MediaDetail.js
-│   │   └── ThemeSelector.js
-│   └── utils/
-│       ├── dom.js       # createElement, debounce, throttle, empty 等
-│       ├── format.js    # 日期、数字、文件大小、slug 格式化
-│       ├── meta.js      # .meta.json sidecar 读写/状态变更
-│       ├── search.js    # 通过 .index/ 分片实现索引搜索
-│       └── stateMachine.js # 配置驱动状态机（读取 task-lifecycle.json）
+│   └── sidebar.js      # 注入 Rail 按钮 + 切换宿主面板
+├── core/               # 可选服务层（独立组件，视图按需引入）
+│   ├── SchemaRegistry.js   # 表结构定义
+│   ├── DataRepository.js   # 抽象数据查询接口
+│   ├── InitPipeline.js     # 工作空间初始化管线
+│   ├── AgentTaskPoller.js  # Agent 任务轮询
+│   └── index.js            # core/ 的统一导出入口
+├── views/              # 全部视图模块（统一 constructor({ api, state })）
+│   ├── KanbanBoard.js      # 任务看板（task-lifecycle.json 驱动列渲染）
+│   ├── ReviewMode.js       # 审批（素材/文案任务不同渲染）
+│   ├── TasksView.js        # 任务列表（CRUD + 状态变更 + Agent 模式）
+│   ├── PublishView.js      # 发布表单 + 发布记录清单
+│   ├── CopywritingView.js  # 图文库（Markdown + meta sidecar 存储）
+│   ├── CalendarView.js     # 日历（每日素材/图文成果统计）
+│   ├── PlatformConfig.js   # 平台配置（CRUD + 自定义发布类型）
+│   ├── MediaArchive.js     # 素材库
+│   ├── GenerationConsole.js # 生成控制台（工作流选择 + 批量生成）
+│   ├── PackageEditor.js    # 打包编辑（主题/平台选择 + 排期）
+│   ├── StatsDashboard.js   # 统计仪表盘
+│   ├── ThemeStrategy.js    # 主题策略管理
+│   ├── DatabaseManager.js  # 数据表管理器（SchemaRegistry + DataRepository）
+│   └── components/
+│       ├── MediaCard.js
+│       ├── MediaDetail.js
+│       ├── ThemeSelector.js
+│       └── PlatformSelector.js
+├── utils/              # 工具函数（纯函数，无副作用）
+│   ├── dom.js           # createElement, debounce, throttle, empty 等
+│   ├── format.js        # 日期、数字、文件大小、slug 格式化
+│   ├── meta.js          # .meta.json sidecar 读写/状态变更
+│   ├── search.js        # 通过 .index/ 分片实现索引搜索
+│   └── stateMachine.js  # 配置驱动状态机（读取 task-lifecycle.json）
 ├── assets/logo.svg
 └── scripts/
     ├── install.sh       # 通过 mkdir -p 创建工作空间目录
@@ -61,12 +74,12 @@ src/
 - DOM ID：以 `media-studio-` 为前缀（如 `media-studio-app`、`media-studio-view-container`）
 - 切勿使用可能与 WebUI 冲突的裸 CSS 类名或短 ID
 
-### 模块模式
-每个视图模块都是一个类，通过构造函数接收 `{ api, state }`：
+### 视图模式
+每个视图模块都是一个类，通过统一的构造函数接收 `{ api, state }`：
 ```js
-this.modules.kanban = new KanbanBoard({ api: this.api, state: this.state });
+this.views.kanban = new KanbanBoard({ api: this.api, state: this.state });
 ```
-每个模块实现 `render(container, params)`——当路由激活对应 hash 时由路由器调用。`render()` 必须支持多次调用（先清空容器再渲染）。
+每个视图实现 `render(container, params)`——当路由激活对应 hash 时由路由器调用。`render()` 必须支持多次调用（先清空容器再渲染）。视图文件统一存放在 `src/views/` 中。
 
 ### API 客户端（`WorkspaceAPI`）
 - 所有操作都是**工作空间相对路径**，解析到 `media-studio/<relPath>`
@@ -142,7 +155,7 @@ archive/<theme>/YYYY/MM/
 ```
 - 前端 UI 自动根据配置渲染看板列和状态操作按钮
 - 新增任务类型只需添加配置文件，无需改代码
-- `src/modules/utils/stateMachine.js` 负责解析配置和校验流转合法性
+- `src/utils/stateMachine.js` 负责解析配置和校验流转合法性
 - 配置不存在时使用内置默认值兜底
 
 ## 重要注意事项

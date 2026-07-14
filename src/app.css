@@ -294,6 +294,56 @@
   margin: 0 0 8px;
 }
 
+/* === Init Tree === */
+.ms-init-tree-container {
+  margin: 8px 0 16px;
+}
+
+.ms-init-tree-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  font-size: 13px;
+  color: var(--ms-text-primary);
+  transition: color .2s;
+}
+
+.ms-init-tree-icon {
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ms-init-tree-name {
+  flex: 0 1 auto;
+  font-family: var(--ms-font-mono);
+}
+
+.ms-init-tree-check {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.ms-init-tree-check::after {
+  content: '';
+}
+
+.ms-init-tree-node.exists .ms-init-tree-check::after,
+.ms-init-tree-node.done .ms-init-tree-check::after {
+  content: '✅';
+}
+
+.ms-init-tree-node.done {
+  color: var(--ms-success);
+  opacity: 0.8;
+}
+
 /* === Warning Banner === */
 .ms-warning-banner {
   display: flex;
@@ -1190,4 +1240,493 @@
   .ms-review-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
+}
+
+/* === Toast Notifications === */
+.ms-toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.ms-toast {
+  pointer-events: auto;
+  padding: 10px 16px;
+  border-radius: var(--ms-radius);
+  background: var(--ms-bg-card);
+  border: 1px solid var(--ms-border);
+  box-shadow: var(--ms-shadow-lg);
+  color: var(--ms-text-primary);
+  font-size: 13px;
+  max-width: 360px;
+  animation: ms-toast-in 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ms-toast-success { border-left: 3px solid var(--ms-success); }
+.ms-toast-error { border-left: 3px solid var(--ms-danger); }
+.ms-toast-warning { border-left: 3px solid var(--ms-warning); }
+.ms-toast-info { border-left: 3px solid var(--ms-info); }
+
+.ms-toast-dismiss {
+  margin-left: auto;
+  cursor: pointer;
+  opacity: 0.5;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  padding: 0 2px;
+}
+
+.ms-toast-dismiss:hover { opacity: 1; }
+
+@keyframes ms-toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* === Database Manager === */
+.ms-db-manager {
+  display: grid;
+  grid-template-columns: 200px 200px 1fr;
+  gap: 1px;
+  background: var(--ms-border);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+  overflow: hidden;
+  height: 100%;
+  min-height: 400px;
+}
+
+.ms-db-panel {
+  background: var(--ms-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ms-db-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ms-text-secondary);
+  border-bottom: 1px solid var(--ms-border);
+  flex-shrink: 0;
+}
+
+.ms-db-add-btn {
+  font-size: 16px;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-db-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.ms-db-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--ms-radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background var(--ms-transition);
+}
+
+.ms-db-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.ms-db-item.active {
+  background: rgba(233,69,96,0.15);
+  color: var(--ms-accent);
+}
+
+.ms-db-item-icon {
+  flex-shrink: 0;
+  color: var(--ms-text-secondary);
+}
+
+.ms-db-item.active .ms-db-item-icon {
+  color: var(--ms-accent);
+}
+
+.ms-db-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms-db-item-id {
+  font-size: 11px;
+  color: var(--ms-text-secondary);
+  opacity: 0.6;
+}
+
+.ms-db-item-count {
+  font-size: 11px;
+  color: var(--ms-text-secondary);
+}
+
+.ms-db-delete-btn,
+.ms-db-edit-btn {
+  opacity: 0;
+  transition: opacity var(--ms-transition);
+}
+
+.ms-db-item:hover .ms-db-delete-btn,
+.ms-db-item:hover .ms-db-edit-btn {
+  opacity: 0.5;
+}
+
+.ms-db-delete-btn:hover {
+  opacity: 1 !important;
+  color: var(--ms-danger);
+}
+
+.ms-db-edit-btn:hover {
+  opacity: 1 !important;
+  color: var(--ms-accent);
+}
+
+.ms-db-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ms-db-form-field-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ms-db-form-field-row .ms-db-field-remove {
+  opacity: 0.4;
+  transition: opacity var(--ms-transition);
+}
+
+.ms-db-form-field-row .ms-db-field-remove:hover {
+  opacity: 1;
+}
+
+.ms-db-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--ms-text-secondary);
+  font-size: 13px;
+}
+
+.ms-db-loading {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--ms-text-secondary);
+  font-size: 13px;
+}
+
+/* Data grid */
+.ms-db-data-grid {
+  flex: 1;
+  overflow: auto;
+}
+
+.ms-db-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ms-db-th {
+  text-align: left;
+  padding: 6px 8px;
+  background: var(--ms-bg-secondary);
+  border-bottom: 1px solid var(--ms-border);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--ms-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.ms-db-th:hover {
+  color: var(--ms-text-primary);
+}
+
+.ms-db-sort-indicator {
+  margin-left: 2px;
+  font-size: 9px;
+}
+
+.ms-db-th-actions {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ms-bg-secondary);
+  border-bottom: 1px solid var(--ms-border);
+  width: 70px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--ms-text-secondary);
+}
+
+.ms-db-data-row {
+  transition: background var(--ms-transition);
+}
+
+.ms-db-data-row:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.ms-db-data-row.editing {
+  background: rgba(33,150,243,0.08);
+}
+
+.ms-db-data-cell {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(42,42,74,0.5);
+  vertical-align: middle;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-db-data-actions {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ms-db-data-actions .ms-btn-icon {
+  opacity: 0;
+  margin: 0 2px;
+}
+
+.ms-db-data-row:hover .ms-db-data-actions .ms-btn-icon {
+  opacity: 0.6;
+}
+
+.ms-db-data-row:hover .ms-db-data-actions .ms-btn-icon:hover {
+  opacity: 1;
+}
+
+.ms-db-null {
+  color: var(--ms-text-secondary);
+  font-style: italic;
+  opacity: 0.5;
+}
+
+.ms-db-bool-true { color: var(--ms-success); }
+.ms-db-bool-false { color: var(--ms-danger); }
+
+.ms-db-number {
+  text-align: right;
+  font-family: var(--ms-font-mono);
+}
+
+.ms-db-datetime {
+  font-family: var(--ms-font-mono);
+  font-size: 12px;
+  color: var(--ms-text-secondary);
+}
+
+.ms-db-text {
+  display: block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms-db-enum-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: rgba(85,85,85,0.2);
+}
+
+.ms-db-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  margin: 1px 2px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: rgba(233,69,96,0.15);
+  color: var(--ms-accent);
+}
+
+.ms-db-json {
+  font-family: var(--ms-font-mono);
+  font-size: 11px;
+  color: var(--ms-text-secondary);
+  white-space: pre;
+}
+
+/* Edit fields inline & form overlay */
+.ms-db-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  border: 1px solid var(--ms-border);
+  border-radius: 3px;
+  background: var(--ms-bg-primary);
+  color: var(--ms-text-primary);
+  font-size: 13px;
+  font-family: var(--ms-font);
+}
+
+.ms-db-edit-textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.ms-db-edit-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.ms-db-readonly {
+  color: var(--ms-text-secondary);
+  font-style: italic;
+}
+
+/* Pagination */
+.ms-db-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid var(--ms-border);
+  background: var(--ms-bg-secondary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ms-db-page-info {
+  color: var(--ms-text-secondary);
+}
+
+.ms-db-page-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ms-db-page-current {
+  font-weight: 600;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* Form overlay modal */
+.ms-db-form-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99998;
+  animation: ms-fade-in 0.15s ease;
+}
+
+.ms-db-form {
+  background: var(--ms-bg-card);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+  box-shadow: var(--ms-shadow-lg);
+  min-width: 400px;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-db-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ms-border);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ms-db-form-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ms-db-form-field {
+  margin-bottom: 12px;
+}
+
+.ms-db-form-field:last-child {
+  margin-bottom: 0;
+}
+
+.ms-db-form-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ms-text-secondary);
+}
+
+.ms-db-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--ms-border);
+}
+
+/* === Layout Utility Classes === */
+.ms-flex-col { display: flex; flex-direction: column; }
+.ms-flex-col-gap8 { display: flex; flex-direction: column; gap: 8px; }
+.ms-flex-col-gap12 { display: flex; flex-direction: column; gap: 12px; }
+.ms-flex-row { display: flex; }
+.ms-flex-row-gap8 { display: flex; gap: 8px; }
+.ms-flex-row-gap12 { display: flex; gap: 12px; }
+.ms-flex-row-center { display: flex; gap: 8px; align-items: center; }
+.ms-flex-row-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
+.ms-flex-end { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
+
+/* === Padding / Modal Utility Classes === */
+.ms-p24 { padding: 24px; }
+.ms-p24-max500 { padding: 24px; max-width: 500px; }
+
+@keyframes ms-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

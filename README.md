@@ -1,5 +1,11 @@
 # Hermes Media Studio
 
+---
+
+**温馨提示：当前还处于开发中，功能还不能使用！**
+
+---
+
 **自媒体内容生产驾驶舱** — 基于 [Hermes WebUI](https://github.com/nesquena/hermes-webui) Extension 机制的纯前端扩展，将文件管理升级为生产流水线。
 
 ![screenshot](https://img.shields.io/badge/status-active-brightgreen)

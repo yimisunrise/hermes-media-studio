@@ -1,17 +1,19 @@
-import WorkspaceAPI from './modules/api.js';
-import AppState from './modules/state.js';
-import Router from './modules/router.js';
-import Sidebar from './modules/sidebar.js';
-import { KanbanBoard } from './modules/KanbanBoard.js';
-import { ReviewMode } from './modules/ReviewMode.js';
-import { MediaDetail } from './modules/components/MediaDetail.js';
-import { CalendarView } from './modules/CalendarView.js';
-import { MediaArchive } from './modules/MediaArchive.js';
-import { TasksView } from './modules/TasksView.js';
-import { PublishView } from './modules/PublishView.js';
-import { CopywritingView } from './modules/CopywritingView.js';
-import { PlatformConfig } from './modules/PlatformConfig.js';
-import { show, hide, empty } from './modules/utils/dom.js';
+import WorkspaceAPI from './lib/api.js';
+import AppState from './lib/state.js';
+import Router from './lib/router.js';
+import Sidebar from './lib/sidebar.js';
+import { KanbanBoard } from './views/KanbanBoard.js';
+import { ReviewMode } from './views/ReviewMode.js';
+import { MediaDetail } from './views/components/MediaDetail.js';
+import { CalendarView } from './views/CalendarView.js';
+import { MediaArchive } from './views/MediaArchive.js';
+import { TasksView } from './views/TasksView.js';
+import { PublishView } from './views/PublishView.js';
+import { CopywritingView } from './views/CopywritingView.js';
+import { PlatformConfig } from './views/PlatformConfig.js';
+import { DatabaseManager } from './views/DatabaseManager.js';
+import { show, hide, empty } from './utils/dom.js';
+import { SchemaRegistry, InitPipeline } from './core/index.js';
 
 const APP_VERSION = '1.0.0';
 
@@ -22,8 +24,44 @@ const DIRS_TO_CREATE = [
   'assets',
   'tasks',
   'copywriting',
+  '.system',
   '.trash',
   '.index'
+];
+
+/* ── Init tree: complete content structure shown on init page ── */
+const INIT_TREE = [
+  { name: 'configs', type: 'dir', step: 'create-dirs', children: [
+    { name: 'themes', type: 'dir', step: 'create-dirs' },
+    { name: 'platforms', type: 'dir', step: 'create-dirs' },
+    { name: 'workflows', type: 'dir', step: 'create-dirs', children: [
+      { name: 'task-lifecycle.json', type: 'file', step: 'seed-configs' }
+    ]}
+  ]},
+  { name: 'assets', type: 'dir', step: 'create-dirs' },
+  { name: 'tasks', type: 'dir', step: 'create-dirs' },
+  { name: 'copywriting', type: 'dir', step: 'create-dirs' },
+  { name: '.system', type: 'dir', step: 'create-dirs', children: [
+    { name: 'boot.json', type: 'file', step: 'mark-done' }
+  ]},
+  { name: '.trash', type: 'dir', step: 'create-dirs' },
+  { name: '.index', type: 'dir', step: 'create-dirs' },
+  { name: '.database', type: 'dir', step: 'bootstrap-core', children: [
+    { name: 'system', type: 'dir', step: 'bootstrap-core', children: [
+      { name: 'db.json', type: 'file', step: 'bootstrap-core' },
+      { name: 'database', type: 'dir', step: 'bootstrap-core', children: [
+        { name: 'schema.json', type: 'file', step: 'bootstrap-core' },
+        { name: 'data.json', type: 'file', step: 'bootstrap-core' }
+      ]},
+      { name: 'table', type: 'dir', step: 'bootstrap-core', children: [
+        { name: 'schema.json', type: 'file', step: 'bootstrap-core' },
+        { name: 'data.json', type: 'file', step: 'bootstrap-core' }
+      ]}
+    ]},
+    { name: 'main', type: 'dir', step: 'bootstrap-core', children: [
+      { name: 'db.json', type: 'file', step: 'bootstrap-core' }
+    ]}
+  ]}
 ];
 
 /* ── Inline SVG icons (no emoji, reliably renderable) ── */
@@ -56,6 +94,8 @@ const ICONS = {
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12 4 4 0 0 0 0-8"/></svg>',
   init:
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8a6 6 0 0 1 6-6 6 6 0 0 1 5.3 3"/><path d="M14 2v4h-4"/><path d="M14 8a6 6 0 0 1-6 6 6 6 0 0 1-5.3-3"/><path d="M2 14v-4h4"/></svg>',
+  database:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="8" cy="3.5" rx="6" ry="2"/><path d="M2 5.5v4c0 1.1 2.7 2 6 2s6-.9 6-2v-4"/><path d="M2 12.5v-7"/></svg>',
 };
 
 const MENU_GROUPS = [
@@ -92,8 +132,16 @@ const MENU_GROUPS = [
     label: '运营配置',
     icon: ICONS.operations,
     items: [
-      { hash: 'init', label: '初始化', icon: ICONS.init },
       { hash: 'platforms', label: '平台配置', icon: ICONS.platforms }
+    ]
+  },
+  {
+    id: 'system',
+    label: '系统管理',
+    icon: ICONS.operations,
+    items: [
+      { hash: 'init', label: '初始化', icon: ICONS.init },
+      { hash: 'database', label: '数据库', icon: ICONS.database }
     ]
   }
 ];
@@ -135,7 +183,13 @@ class MediaStudioApp {
         return;
       }
 
-      this._workspaceReady = await this.api.checkInitialized();
+      this.schemaRegistry = new SchemaRegistry({ api: this.api, notificationBus: null });
+      this.pipeline = new InitPipeline({ api: this.api, schemaRegistry: this.schemaRegistry });
+      this._registerInitSteps();
+
+      const boot = await this.schemaRegistry.readBoot();
+      this._workspaceReady = boot.init_state === 'done';
+      this._applyMenuFilter();
     } catch (e) {
       this._showError('初始化失败: ' + e.message);
       return;
@@ -163,6 +217,8 @@ class MediaStudioApp {
     const menu = document.createElement('div');
     menu.className = 'ms-menu';
 
+    this._menuGroupEls = {};
+
     for (const group of MENU_GROUPS) {
       const groupEl = document.createElement('div');
       groupEl.className = 'ms-menu-group';
@@ -179,6 +235,7 @@ class MediaStudioApp {
       const body = document.createElement('div');
       body.className = 'ms-menu-group-body';
 
+      const itemEls = {};
       for (const item of group.items) {
         const itemEl = document.createElement('button');
         itemEl.className = 'ms-menu-item';
@@ -189,6 +246,7 @@ class MediaStudioApp {
         `;
         itemEl.addEventListener('click', () => this.router.navigate(item.hash));
         body.appendChild(itemEl);
+        itemEls[item.hash] = itemEl;
       }
 
       header.addEventListener('click', () => {
@@ -198,16 +256,49 @@ class MediaStudioApp {
       groupEl.appendChild(header);
       groupEl.appendChild(body);
       menu.appendChild(groupEl);
+      this._menuGroupEls[group.id] = { groupEl, itemEls };
     }
 
     panel.appendChild(menu);
     return panel;
   }
 
+  /** Filter visible menu groups based on initialization state.
+   *  When workspace is not ready, only the system group's init item is shown. */
+  _applyMenuFilter() {
+    if (!this._menuGroupEls) return;
+    const isReady = this._workspaceReady;
+
+    for (const group of MENU_GROUPS) {
+      const { groupEl, itemEls } = this._menuGroupEls[group.id];
+      if (!isReady) {
+        if (group.id === 'system') {
+          groupEl.style.display = '';
+          for (const [hash, el] of Object.entries(itemEls)) {
+            el.style.display = hash === 'init' ? '' : 'none';
+          }
+        } else {
+          groupEl.style.display = 'none';
+        }
+      } else {
+        groupEl.style.display = '';
+        for (const el of Object.values(itemEls)) {
+          el.style.display = '';
+        }
+      }
+    }
+  }
+
   _initModules(viewContainer) {
     const renderInContainer = (viewName) => (params) => {
       this._updateNavActive(viewName);
       empty(viewContainer);
+
+      // Protect routes when workspace is not initialized
+      if (viewName !== 'init' && !this._workspaceReady) {
+        this.router.navigate('init');
+        return;
+      }
 
       const loading = document.createElement('div');
       loading.className = 'ms-loading';
@@ -219,10 +310,6 @@ class MediaStudioApp {
         setTimeout(() => {
           empty(viewContainer);
           module.render(viewContainer, params);
-          // Show warning banner on non-init views when workspace not ready
-          if (viewName !== 'init' && !this._workspaceReady) {
-            this._renderWarningBanner(viewContainer);
-          }
         }, 0);
       }
     };
@@ -237,6 +324,7 @@ class MediaStudioApp {
     this.modules.platforms = new PlatformConfig(sharedDeps);
     this.modules.calendar = new CalendarView(sharedDeps);
     this.modules.archive = new MediaArchive(sharedDeps);
+    this.modules.database = new DatabaseManager({ ...sharedDeps, schemaRegistry: this.schemaRegistry });
 
     this.router.register('kanban', renderInContainer('kanban'));
     this.router.register('review', renderInContainer('review'));
@@ -246,6 +334,7 @@ class MediaStudioApp {
     this.router.register('platforms', renderInContainer('platforms'));
     this.router.register('calendar', renderInContainer('calendar'));
     this.router.register('archive', renderInContainer('archive'));
+    this.router.register('database', renderInContainer('database'));
 
     // Init view — no module class, rendered directly
     this.router.register('init', (params) => {
@@ -272,10 +361,14 @@ class MediaStudioApp {
       // Re-detect workspace and session — workspace switch or new chat
       // session may have changed them since last activation
       this.api.detectWorkspace();
-      this._workspaceReady = await this.api.checkInitialized();
+      const boot = await this.schemaRegistry.readBoot();
+      this._workspaceReady = boot.init_state === 'done';
+      this._applyMenuFilter();
 
       const currentHash = window.location.hash;
-      if (!currentHash || currentHash === '#') {
+      if (!this._workspaceReady) {
+        this.router.navigate('init');
+      } else if (!currentHash || currentHash === '#') {
         this.router.navigate('kanban');
       } else {
         this.router.navigate(currentHash.slice(1));
@@ -295,24 +388,133 @@ class MediaStudioApp {
     });
   }
 
+  /** Register built-in initialization steps into the pipeline */
+  _registerInitSteps() {
+    this.pipeline.registerStep('create-dirs', {
+      label: '创建目录结构',
+      required: true,
+      handler: async ({ onProgress }) => {
+        for (const dir of DIRS_TO_CREATE) {
+          onProgress(`创建 ${dir}/`);
+          await this.api.mkdir(dir);
+        }
+      }
+    });
+
+    this.pipeline.registerStep('bootstrap-core', {
+      label: '初始化核心数据库',
+      required: true,
+      handler: async ({ api, schemaRegistry, onProgress }) => {
+        onProgress('初始化系统数据库...');
+        await schemaRegistry.bootstrapSystemDb();
+
+        onProgress('创建主数据库...');
+        await api.mkdir('.database/main');
+        const now = new Date().toISOString();
+        await api.writeJSON('.database/main/db.json', {
+          id: 'main', label: '主库', tables: [], created_at: now
+        });
+
+        let dbReg;
+        try {
+          dbReg = await api.readJSON('.database/db.json');
+        } catch {
+          dbReg = { databases: [] };
+        }
+        dbReg.databases.push({ id: 'main', label: '主库', createdAt: now });
+        await api.writeJSON('.database/db.json', dbReg);
+      }
+    });
+
+    this.pipeline.registerStep('seed-configs', {
+      label: '初始化默认配置',
+      required: false,
+      handler: async ({ api, onProgress }) => {
+        onProgress('检查配置文件...');
+        const exists = await api.exists('configs/workflows/task-lifecycle.json');
+        if (!exists) {
+          onProgress('创建默认任务生命周期配置...');
+          await api.writeJSON('configs/workflows/task-lifecycle.json', {
+            media: {
+              label: '素材任务',
+              states: ['initialized', 'generating', 'pending_review', 'approved', 'rejected'],
+              kanban_states: ['generating', 'pending_review', 'approved'],
+              transitions: {
+                initialized: ['generating'],
+                generating: ['pending_review'],
+                pending_review: ['approved', 'rejected']
+              },
+              final_states: ['approved', 'rejected'],
+              color: '#4a90d9'
+            }
+          });
+        }
+      }
+    });
+
+    this.pipeline.registerStep('mark-done', {
+      label: '完成初始化',
+      required: true,
+      handler: async ({ schemaRegistry }) => {
+        await schemaRegistry.markBootComplete();
+      }
+    });
+  }
+
+  /** Recursively render INIT_TREE into a container as flat depth-indented rows */
+  _renderTree(nodes, containerEl, depth = 0) {
+    for (const node of nodes) {
+      const el = document.createElement('div');
+      el.className = 'ms-init-tree-node';
+      if (node.step) el.dataset.step = node.step;
+      el.dataset.name = node.name;
+      el.style.paddingLeft = `${depth * 24}px`;
+      el.innerHTML = `
+        <span class="ms-init-tree-icon">${node.type === 'dir' ? '📁' : '📄'}</span>
+        <span class="ms-init-tree-name">${node.name}</span>
+        <span class="ms-init-tree-check"></span>
+      `;
+      containerEl.appendChild(el);
+      if (node.children) {
+        this._renderTree(node.children, containerEl, depth + 1);
+      }
+    }
+  }
+
+  /** Async check existing top-level entries via api.tree('.') and mark matching nodes */
+  async _checkTreeExistence(treeContainer) {
+    try {
+      const entries = await this.api.tree('.');
+      const names = new Set(entries.map(e => e.name));
+      treeContainer.querySelectorAll('.ms-init-tree-node').forEach(el => {
+        if (names.has(el.dataset.name)) {
+          el.classList.add('exists');
+        }
+      });
+    } catch {
+      // workspace tree may not exist yet
+    }
+  }
+
   /** Render the full-page init view */
   _renderInitView(container) {
     if (this._workspaceReady) {
-      container.innerHTML = `
-        <div class="ms-init-view">
-          <div class="ms-init-completed">
-            <div class="ms-init-completed-icon">✅</div>
-            <h2>工作空间初始化已完成</h2>
-            <p>Media Studio 工作空间位于：</p>
-            <div class="ms-init-path">${this.api.workspacePath || '未知'}</div>
-          </div>
-          <p class="ms-init-dir-heading">目录结构：</p>
-          <ul class="ms-init-dir-list">
-            ${DIRS_TO_CREATE.map(d => `<li>${d}/</li>`).join('')}
-          </ul>
+    container.innerHTML = `
+      <div class="ms-init-view">
+        <div class="ms-init-completed">
+          <div class="ms-init-completed-icon">✅</div>
+          <h2>工作空间初始化已完成</h2>
+          <p>Media Studio 工作空间位于：</p>
+          <div class="ms-init-path">${this.api.workspacePath || '未知'}</div>
         </div>
-      `;
-      return;
+        <p class="ms-init-dir-heading">初始化内容：</p>
+        <div class="ms-init-tree-container" id="ms-init-tree-completed"></div>
+      </div>
+    `;
+    const treeEl = container.querySelector('#ms-init-tree-completed');
+    this._renderTree(INIT_TREE, treeEl);
+    treeEl.querySelectorAll('.ms-init-tree-node').forEach(el => el.classList.add('done'));
+    return;
     }
 
     container.innerHTML = `
@@ -325,15 +527,17 @@ class MediaStudioApp {
           <div class="ms-init-path">${this.api.workspacePath || '未知'}</div>
           <p>将创建以下目录：</p>
         </div>
-        <ul class="ms-init-dir-list">
-          ${DIRS_TO_CREATE.map(d => `<li>${d}/</li>`).join('')}
-        </ul>
+        <div class="ms-init-tree-container" id="ms-init-tree-pending"></div>
         <div class="ms-init-actions">
           <button class="ms-btn ms-btn-primary ms-init-button" id="ms-init-do-btn">初始化工作空间</button>
         </div>
         <div class="ms-init-progress" style="display:none;"></div>
       </div>
     `;
+
+    const treeEl = container.querySelector('#ms-init-tree-pending');
+    this._renderTree(INIT_TREE, treeEl);
+    this._checkTreeExistence(treeEl);
 
     container.querySelector('#ms-init-do-btn').addEventListener('click', async () => {
       const btn = container.querySelector('#ms-init-do-btn');
@@ -342,18 +546,30 @@ class MediaStudioApp {
       btn.textContent = '创建中…';
       progress.style.display = 'block';
 
-      const succeeded = await this._createWorkspaceDirectories(progress);
+      const result = await this.pipeline.run({
+        onProgress: (stepName, status) => {
+          if (status === 'running') {
+            progress.innerHTML = `<span>${stepName === 'create-dirs' ? '创建目录' : stepName === 'bootstrap-core' ? '初始化数据库' : stepName === 'seed-configs' ? '配置默认文件' : stepName === 'mark-done' ? '完成初始化' : stepName}...</span>`;
+          } else if (status === 'done' && stepName) {
+            treeEl.querySelectorAll(`[data-step="${stepName}"]`).forEach(el => {
+              el.classList.add('done');
+            });
+          }
+        }
+      });
 
-      if (succeeded) {
+      if (result.ok) {
         this._workspaceReady = true;
-        progress.innerHTML = '<span class="ms-setup-success">✅ 目录创建完成。</span>';
+        this._applyMenuFilter();
+        treeEl.querySelectorAll('.ms-init-tree-node').forEach(el => el.classList.add('done'));
+        progress.innerHTML = '<span class="ms-setup-success">✅ 初始化完成。</span>';
         const banner = this.container.querySelector('.ms-warning-banner');
         if (banner) banner.remove();
         setTimeout(() => {
           this.router.navigate('kanban');
         }, 500);
       } else {
-        progress.innerHTML = '<span class="ms-setup-error">❌ 部分目录创建失败，请重试。</span>';
+        progress.innerHTML = `<span class="ms-setup-error">❌ 初始化失败: ${result.failedStep}，请重试。</span>`;
         btn.disabled = false;
         btn.textContent = '重试';
       }
@@ -375,40 +591,6 @@ class MediaStudioApp {
       banner.remove();
     });
     container.insertBefore(banner, container.firstChild);
-  }
-
-  /** Write initialization marker file .index/init.json after successful
-   *  directory creation. Records app version and directory snapshot. */
-  async _writeInitMarker() {
-    await this.api.writeJSON('.index/init.json', {
-      version: APP_VERSION,
-      created_at: new Date().toISOString(),
-      directories: DIRS_TO_CREATE
-    });
-  }
-
-  /** Create workspace directory structure, showing progress */
-  async _createWorkspaceDirectories(progressEl) {
-    let allOk = true;
-    for (let i = 0; i < DIRS_TO_CREATE.length; i++) {
-      const dir = DIRS_TO_CREATE[i];
-      progressEl.innerHTML = `<span>(${i + 1}/${DIRS_TO_CREATE.length}) 创建 ${dir}/ …</span>`;
-      try {
-        await this.api.mkdir(dir);
-      } catch (e) {
-        console.error('mkdir failed:', dir, e);
-        allOk = false;
-      }
-    }
-    if (allOk) {
-      try {
-        await this._writeInitMarker();
-      } catch (e) {
-        console.error('write init.json failed:', e);
-        allOk = false;
-      }
-    }
-    return allOk;
   }
 
   _showError(msg) {
