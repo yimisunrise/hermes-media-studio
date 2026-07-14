@@ -1,25 +1,19 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Boot JSON state persistence on partial updates
 
 The system SHALL preserve all existing fields in `.system/boot.json` when only a subset of fields is provided to `writeBoot()`.
 
-#### Scenario: writeStepStatus preserves init_state
+**Note:** `boot.json` is now simplified to store only app-level metadata (first_boot_at, version, app_version). Module-level init state is tracked in `.system/init/<module>.json` files instead. The `steps` field in boot.json is no longer written by the init system.
 
-- **WHEN** `writeStepStatus('some-step', 'done')` is called after `init_state` has been set to `'done'` 
-- **THEN** the resulting boot.json SHALL retain `init_state` as `'done'`
+#### Scenario: writeStepStatus writes module marker instead of boot.json steps
 
-#### Scenario: markBootComplete overrides init_state
+- **WHEN** a module init step completes
+- **THEN** the orchestrator SHALL write `.system/init/<module-name>.json`
+- **AND** SHALL NOT write `steps` to `.system/boot.json`
 
-- **WHEN** `markBootComplete()` calls `writeBoot({ init_state: 'done', ... })`
-- **THEN** the resulting boot.json SHALL have `init_state` set to `'done'`
+#### Scenario: markBootComplete is removed
 
-#### Scenario: First boot write uses defaults
-
-- **WHEN** `writeBoot()` is called before any boot.json exists on disk
-- **THEN** the resulting payload SHALL contain all fields from `BOOT_DEFAULTS`, with any explicitly provided `data` fields taking precedence
-
-#### Scenario: Concurrent field updates merge correctly
-
-- **WHEN** `writeBoot()` is called with a `steps` object
-- **THEN** the resulting `steps` in boot.json SHALL merge existing steps (from the current file) with the newly provided steps, without removing previously recorded step entries
+- **WHEN** all modules complete initialization
+- **THEN** no `markBootComplete()` call SHALL be made
+- **AND** the app SHALL determine readiness by checking marker versions, not `boot.json.init_state`

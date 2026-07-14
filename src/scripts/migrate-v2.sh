@@ -39,13 +39,13 @@ echo "  ✓ .system/boot.json created"
 echo "Creating .database/ skeleton..."
 mkdir -p "${MEDIA_STUDIO}/.database"
 
-# Write initial db.json (empty database registry)
-cat > "${MEDIA_STUDIO}/.database/db.json" << 'DBEOF'
+# Write initial databases.json (empty database registry)
+cat > "${MEDIA_STUDIO}/.database/databases.json" << 'DBEOF'
 {
   "databases": []
 }
 DBEOF
-echo "  ✓ .database/db.json created"
+echo "  ✓ .database/databases.json created"
 
 # ── Create system database + table ──────────────────
 SYSTEM_DB="${MEDIA_STUDIO}/.database/system"
