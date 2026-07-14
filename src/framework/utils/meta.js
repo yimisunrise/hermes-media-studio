@@ -1,3 +1,9 @@
+export function uuid() {
+  return crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export async function readMeta(api, assetPath) {
   const metaPath = `${assetPath}.meta.json`;
   try {
@@ -16,7 +22,7 @@ export async function writeMeta(api, assetPath, meta) {
 export function createDefaultMeta(filename, theme, workflow, generation = {}) {
   const now = new Date().toISOString();
   return {
-    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    id: uuid(),
     filename,
     theme: theme || '',
     workflow: workflow || '',

@@ -1,6 +1,6 @@
-import { empty } from '../utils/dom.js';
-import { formatDateTime } from '../utils/format.js';
-import { DataRepository } from '../core/DataRepository.js';
+import { empty } from '../../framework/utils/dom.js';
+import { formatDateTime } from '../../framework/utils/format.js';
+import { DataRepository } from '../../framework/core/DataRepository.js';
 
 export class DatabaseManager {
   constructor({ api, state, schemaRegistry }) {

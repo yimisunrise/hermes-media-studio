@@ -1,5 +1,5 @@
-import { createElement } from '../../utils/dom.js';
-import { formatDate, truncate } from '../../utils/format.js';
+import { createElement } from '../../../framework/utils/dom.js';
+import { formatDate, truncate } from '../../../framework/utils/format.js';
 
 export class MediaCard {
   constructor(api, state) {

@@ -1,5 +1,5 @@
-import { createElement, empty } from '../utils/dom.js';
-import { formatDate } from '../utils/format.js';
+import { createElement, empty } from '../../framework/utils/dom.js';
+import { formatDate } from '../../framework/utils/format.js';
 
 export class CalendarView {
   constructor({ api, state }) {

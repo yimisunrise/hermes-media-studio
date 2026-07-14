@@ -1,4 +1,4 @@
-import { createElement, empty } from '../utils/dom.js';
+import { createElement, empty } from '../../framework/utils/dom.js';
 
 export class PlatformConfig {
   constructor({ api, state }) {

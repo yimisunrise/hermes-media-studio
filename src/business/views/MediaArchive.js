@@ -1,8 +1,8 @@
 import { MediaCard } from './components/MediaCard.js';
 import { MediaDetail } from './components/MediaDetail.js';
-import { search } from '../utils/search.js';
-import { createElement, empty, debounce } from '../utils/dom.js';
-import { changeStatus } from '../utils/meta.js';
+import { search } from '../../framework/utils/search.js';
+import { createElement, empty, debounce } from '../../framework/utils/dom.js';
+import { changeStatus } from '../../framework/utils/meta.js';
 
 export class MediaArchive {
   constructor({ api, state }) {
@@ -11,6 +11,11 @@ export class MediaArchive {
     this.mediaCard = new MediaCard(api, state);
     this.currentPath = 'assets';
     this._isTrashMode = false;
+  }
+
+  destroy() {
+    this.mediaCard = null;
+    this._trashBtn = null;
   }
 
   async render(container) {

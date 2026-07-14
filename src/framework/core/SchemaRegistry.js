@@ -1,7 +1,5 @@
 const SYSTEM_DB_ID = 'system';
-const DB_FILE = '.database/db.json';
-
-const BOOT_FILE = '.system/boot.json';
+const DB_FILE = '.database/databases.json';
 
 export const TABLE_SCHEMA = {
   id: 'table',
@@ -29,67 +27,11 @@ const DATABASE_TABLE_SCHEMA = {
   shard: { type: 'none' }
 };
 
-const BOOT_DEFAULTS = {
-  boot_id: '',
-  init_state: 'pending',
-  created_at: '',
-  updated_at: '',
-  version: '2.0.0'
-};
-
-function uuid() {
-  return crypto.randomUUID
-    ? crypto.randomUUID()
-    : Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
-
 export class SchemaRegistry {
   constructor({ api, notificationBus }) {
     this.api = api;
     this.notificationBus = notificationBus;
     this._tableCache = {};
-  }
-
-  // ── Boot ────────────────────────────────────────────
-
-  async readBoot() {
-    try {
-      return await this.api.readJSON(BOOT_FILE);
-    } catch {
-      return { ...BOOT_DEFAULTS };
-    }
-  }
-
-  async writeBoot(data) {
-    const current = await this.readBoot();
-    const payload = { ...current, ...data, updated_at: new Date().toISOString() };
-    // When steps are provided, merge with existing steps to preserve step history
-    if (data.steps) {
-      payload.steps = { ...(current.steps || {}), ...data.steps };
-    }
-    await this.api.writeJSON(BOOT_FILE, payload);
-    return payload;
-  }
-
-  /** Convenience: record a single step status in boot.json */
-  async writeStepStatus(stepName, status) {
-    return this.writeBoot({
-      steps: { [stepName]: { status, completedAt: new Date().toISOString() } }
-    });
-  }
-
-  async isFirstBoot() {
-    const boot = await this.readBoot();
-    return boot.init_state === 'pending';
-  }
-
-  async markBootComplete() {
-    const now = new Date().toISOString();
-    await this.writeBoot({
-      boot_id: uuid(),
-      init_state: 'done',
-      created_at: now
-    });
   }
 
   // ── System database bootstrap ───────────────────────
@@ -237,11 +179,9 @@ export class SchemaRegistry {
       throw new Error(`Invalid table id: "${id}".`);
     }
 
-    // Check existing
     const existing = await this.getTable(database, id);
     if (existing) throw new Error(`Table "${database}.${id}" already exists.`);
 
-    // Create directory + schema
     await this.api.mkdir(`.database/${database}/${id}`);
     const schema = {
       id,
@@ -253,13 +193,11 @@ export class SchemaRegistry {
     await this.api.writeJSON(`.database/${database}/${id}/schema.json`, schema);
     await this.api.writeJSON(`.database/${database}/${id}/data.json`, { records: [] });
 
-    // Update db.json
     const dbMeta = await this._readDbMeta(database);
     dbMeta.tables = dbMeta.tables || [];
     dbMeta.tables.push({ id, label: schema.label, fieldCount: (schema.fields || []).length });
     await this._writeDbMeta(database, dbMeta);
 
-    // Register in system.table table
     const now = new Date().toISOString();
     await this._insertSystemRecord('table', {
       id, database, label: schema.label,
@@ -297,15 +235,12 @@ export class SchemaRegistry {
       throw new Error('System table cannot be deleted.');
     }
 
-    // Delete directory
     await this.api.delete(`.database/${database}/${id}`);
 
-    // Update db.json
     const dbMeta = await this._readDbMeta(database);
     dbMeta.tables = (dbMeta.tables || []).filter(t => t.id !== id);
     await this._writeDbMeta(database, dbMeta);
 
-    // Remove from system.table table
     await this._deleteSystemRecordByFilter('table', r => r.id === id && r.database === database);
 
     delete this._tableCache[`${database}.${id}`];

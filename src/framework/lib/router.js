@@ -1,10 +1,9 @@
-const VIEWS = ['kanban', 'review', 'tasks', 'publish', 'copywriting', 'platforms', 'calendar', 'archive', 'database', 'init'];
-
 class Router {
-  constructor(state) {
+  constructor(state, { defaultView = 'kanban' } = {}) {
     this.state = state;
     this.routes = {};
     this.currentView = null;
+    this.defaultView = defaultView;
     this._onHashChange = this._onHashChange.bind(this);
   }
 
@@ -20,12 +19,12 @@ class Router {
   }
 
   _onHashChange() {
-    const hash = window.location.hash.slice(1) || 'kanban';
+    const hash = window.location.hash.slice(1) || this.defaultView;
     const parts = hash.split('/');
     const view = parts[0];
 
-    if (!VIEWS.includes(view)) {
-      window.location.hash = '#kanban';
+    if (!this.routes[view]) {
+      window.location.hash = '#' + this.defaultView;
       return;
     }
 

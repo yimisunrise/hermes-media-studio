@@ -2,8 +2,8 @@
  * CopywritingView — 图文库浏览视图
  * 只读浏览：列表 → 详情，支持状态筛选、分片索引加载、简单 Markdown 渲染
  */
-import { empty, createElement } from '../utils/dom.js';
-import { formatDate } from '../utils/format.js';
+import { empty, createElement } from '../../framework/utils/dom.js';
+import { formatDate } from '../../framework/utils/format.js';
 
 const STATUS_CONFIG = {
   draft:         { label: '草稿',     color: '#888' },

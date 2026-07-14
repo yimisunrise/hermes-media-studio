@@ -1,6 +1,6 @@
-import { createStateMachine } from '../utils/stateMachine.js';
-import { createElement, empty, qs, qsa } from '../utils/dom.js';
-import { formatDateTime } from '../utils/format.js';
+import { createStateMachine } from '../../framework/utils/stateMachine.js';
+import { createElement, empty, qs, qsa } from '../../framework/utils/dom.js';
+import { formatDateTime } from '../../framework/utils/format.js';
 
 export class ReviewMode {
   constructor({ api, state }) {
@@ -20,6 +20,14 @@ export class ReviewMode {
     } catch {
       this._sm = null;
     }
+  }
+
+  destroy() {
+    if (this._keyHandler) {
+      document.removeEventListener('keydown', this._keyHandler);
+      this._keyHandler = null;
+    }
+    this._sm = null;
   }
 
   _ensureStyles() {

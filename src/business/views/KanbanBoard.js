@@ -1,4 +1,4 @@
-import { createElement, empty } from '../utils/dom.js';
+import { createElement, empty } from '../../framework/utils/dom.js';
 
 export class KanbanBoard {
   constructor({ api, state }) {
@@ -9,7 +9,7 @@ export class KanbanBoard {
   }
 
   async _initSM() {
-    const { createStateMachine } = await import('../utils/stateMachine.js');
+    const { createStateMachine } = await import('../../framework/utils/stateMachine.js');
     this._sm = await createStateMachine(this.api);
   }
 

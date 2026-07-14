@@ -1,6 +1,6 @@
-import { empty } from '../utils/dom.js';
-import { formatDateTime } from '../utils/format.js';
-import { createStateMachine } from '../utils/stateMachine.js';
+import { empty } from '../../framework/utils/dom.js';
+import { formatDateTime } from '../../framework/utils/format.js';
+import { createStateMachine } from '../../framework/utils/stateMachine.js';
 
 const TYPE_COLORS = {
   media: '#4a90d9',
@@ -36,6 +36,10 @@ export class TasksView {
     this._tasks = [];
     this._filterType = 'all';
     this._filterStatus = 'all';
+  }
+
+  destroy() {
+    this._sm = null;
   }
 
   async render(container) {

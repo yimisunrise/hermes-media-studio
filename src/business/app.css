@@ -1,0 +1,701 @@
+/* ============================================================
+   Hermes Media Studio — Business View Styles
+   ============================================================ */
+
+/* === Kanban Board === */
+.ms-kanban {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  height: 100%;
+  min-height: calc(100vh - 180px);
+}
+
+.ms-kanban-column {
+  background: var(--ms-bg-secondary);
+  border-radius: var(--ms-radius);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ms-border);
+}
+
+.ms-kanban-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid var(--ms-border);
+  position: sticky;
+  top: 0;
+  background: var(--ms-bg-secondary);
+  border-radius: var(--ms-radius) var(--ms-radius) 0 0;
+}
+
+.ms-kanban-column-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: background 0.15s ease;
+}
+
+.ms-kanban-column-body:has(.ms-dragging) {
+  background: rgba(233, 69, 96, 0.03);
+}
+
+/* === Media Card === */
+.ms-media-card {
+  background: var(--ms-bg-card);
+  border-radius: var(--ms-radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--ms-transition);
+  border: 2px solid transparent;
+  position: relative;
+}
+
+.ms-media-card:hover {
+  border-color: var(--ms-accent);
+  transform: translateY(-1px);
+  box-shadow: var(--ms-shadow);
+}
+
+.ms-media-card.selected { border-color: var(--ms-info); }
+
+.ms-media-card-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: var(--ms-bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ms-text-secondary);
+  font-size: 32px;
+}
+
+.ms-media-card-info { padding: 8px 10px; }
+
+.ms-media-card-theme {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--ms-accent);
+  color: #fff;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.ms-media-card-params {
+  font-size: 11px;
+  color: var(--ms-text-secondary);
+  line-height: 1.4;
+}
+
+.ms-media-card-star {
+  color: var(--ms-star);
+  font-size: 14px;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+/* === Drag and Drop === */
+.ms-dragging {
+  opacity: 0.5;
+  border-color: var(--ms-accent) !important;
+  transform: rotate(2deg);
+}
+
+/* === Review Grid === */
+.ms-review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.ms-review-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--ms-bg-secondary);
+  border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-review-header-title { font-size: 16px; font-weight: 600; }
+
+.ms-review-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--ms-bg-primary);
+  border-bottom: 1px solid var(--ms-border);
+  position: sticky;
+  bottom: 0;
+}
+
+.ms-review-shortcuts {
+  font-size: 11px;
+  color: var(--ms-text-secondary);
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.ms-review-shortcuts kbd {
+  background: var(--ms-bg-card);
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--ms-border);
+  font-family: var(--ms-font-mono);
+  font-size: 11px;
+}
+
+/* === Hover Preview === */
+.ms-hover-preview {
+  position: fixed;
+  z-index: 1000;
+  background: var(--ms-bg-secondary);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+  box-shadow: var(--ms-shadow-lg);
+  width: 360px;
+  padding: 16px;
+  pointer-events: none;
+}
+
+.ms-hover-preview img {
+  width: 100%;
+  border-radius: var(--ms-radius-sm);
+  margin-bottom: 12px;
+}
+
+.ms-hover-preview-details {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ms-text-secondary);
+}
+
+.ms-hover-preview-details strong { color: var(--ms-text-primary); }
+
+/* === Media Detail Modal === */
+.ms-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 24px;
+}
+
+.ms-detail-image img {
+  width: 100%;
+  border-radius: var(--ms-radius);
+}
+
+.ms-detail-info h2 {
+  margin: 0 0 16px;
+  font-size: 20px;
+}
+
+.ms-detail-section { margin-bottom: 20px; }
+
+.ms-detail-section h3 {
+  font-size: 14px;
+  color: var(--ms-accent);
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ms-detail-params {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  font-size: 13px;
+}
+
+.ms-detail-param-label { color: var(--ms-text-secondary); }
+.ms-detail-param-value {
+  color: var(--ms-text-primary);
+  font-family: var(--ms-font-mono);
+  font-size: 12px;
+}
+
+/* === Asset Grid === */
+.ms-asset-grid-select {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.ms-asset-select-item {
+  position: relative;
+  cursor: pointer;
+  border-radius: var(--ms-radius-sm);
+  overflow: hidden;
+  border: 2px solid transparent;
+}
+
+.ms-asset-select-item.selected { border-color: var(--ms-accent); }
+
+.ms-asset-select-item img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.ms-asset-select-cover {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: var(--ms-accent);
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* === Calendar === */
+.ms-calendar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ms-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-calendar-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ms-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-collapse: collapse;
+}
+
+.ms-calendar-weekday {
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ms-text-secondary);
+  border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-calendar-day {
+  min-height: 100px;
+  border: 1px solid var(--ms-border);
+  padding: 6px;
+  cursor: pointer;
+}
+
+.ms-calendar-day.today { background: rgba(233, 69, 96, 0.1); }
+.ms-calendar-day.other-month { opacity: 0.4; }
+
+.ms-calendar-day-number {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.ms-calendar-event {
+  font-size: 10px;
+  padding: 2px 4px;
+  margin-bottom: 2px;
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-calendar-event.scheduled { background: var(--ms-info); color: #fff; }
+.ms-calendar-event.published { background: var(--ms-success); color: #fff; }
+
+/* === Data Entry === */
+.ms-data-entry {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.ms-data-entry-field label {
+  font-size: 11px;
+  color: var(--ms-text-secondary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ms-data-entry-field input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  background: var(--ms-bg-primary);
+  color: var(--ms-text-primary);
+  font-size: 13px;
+}
+
+/* === Workflow Cards === */
+.ms-workflow-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.ms-workflow-card {
+  background: var(--ms-bg-card);
+  border-radius: var(--ms-radius);
+  padding: 14px;
+  border: 1px solid var(--ms-border);
+  cursor: pointer;
+  transition: var(--ms-transition);
+}
+
+.ms-workflow-card:hover { border-color: var(--ms-accent); }
+
+.ms-workflow-card h4 { margin: 0 0 6px; font-size: 14px; }
+
+.ms-workflow-params {
+  font-size: 11px;
+  color: var(--ms-text-secondary);
+  line-height: 1.5;
+}
+
+/* === Generation Dialog === */
+.ms-gen-dialog { max-width: 500px; }
+
+.ms-gen-dialog .ms-form-row { margin-bottom: 12px; }
+
+/* === Trash / Recovery === */
+.ms-trash-notice {
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid var(--ms-warning);
+  border-radius: var(--ms-radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--ms-warning);
+  margin-bottom: 16px;
+}
+
+/* === Database Manager === */
+.ms-db-manager {
+  display: grid;
+  grid-template-columns: 200px 200px 1fr;
+  gap: 1px;
+  background: var(--ms-border);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+  overflow: hidden;
+  height: 100%;
+  min-height: 400px;
+}
+
+.ms-db-panel {
+  background: var(--ms-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ms-db-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ms-text-secondary);
+  border-bottom: 1px solid var(--ms-border);
+  flex-shrink: 0;
+}
+
+.ms-db-add-btn {
+  font-size: 16px;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-db-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.ms-db-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--ms-radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background var(--ms-transition);
+}
+
+.ms-db-item:hover { background: rgba(255,255,255,0.05); }
+.ms-db-item.active { background: rgba(233,69,96,0.15); color: var(--ms-accent); }
+.ms-db-item-icon { flex-shrink: 0; color: var(--ms-text-secondary); }
+.ms-db-item.active .ms-db-item-icon { color: var(--ms-accent); }
+.ms-db-item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-db-item-id { font-size: 11px; color: var(--ms-text-secondary); opacity: 0.6; }
+.ms-db-item-count { font-size: 11px; color: var(--ms-text-secondary); }
+
+.ms-db-delete-btn, .ms-db-edit-btn { opacity: 0; transition: opacity var(--ms-transition); }
+.ms-db-item:hover .ms-db-delete-btn,
+.ms-db-item:hover .ms-db-edit-btn { opacity: 0.5; }
+.ms-db-delete-btn:hover { opacity: 1 !important; color: var(--ms-danger); }
+.ms-db-edit-btn:hover { opacity: 1 !important; color: var(--ms-accent); }
+
+.ms-db-field-list { display: flex; flex-direction: column; gap: 6px; }
+
+.ms-db-form-field-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ms-db-form-field-row .ms-db-field-remove { opacity: 0.4; transition: opacity var(--ms-transition); }
+.ms-db-form-field-row .ms-db-field-remove:hover { opacity: 1; }
+
+.ms-db-empty { padding: 24px 12px; text-align: center; color: var(--ms-text-secondary); font-size: 13px; }
+.ms-db-loading { padding: 24px 12px; text-align: center; color: var(--ms-text-secondary); font-size: 13px; }
+
+.ms-db-data-grid { flex: 1; overflow: auto; }
+.ms-db-grid-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.ms-db-th {
+  text-align: left;
+  padding: 6px 8px;
+  background: var(--ms-bg-secondary);
+  border-bottom: 1px solid var(--ms-border);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--ms-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.ms-db-th:hover { color: var(--ms-text-primary); }
+.ms-db-sort-indicator { margin-left: 2px; font-size: 9px; }
+
+.ms-db-th-actions {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ms-bg-secondary);
+  border-bottom: 1px solid var(--ms-border);
+  width: 70px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--ms-text-secondary);
+}
+
+.ms-db-data-row { transition: background var(--ms-transition); }
+.ms-db-data-row:hover { background: rgba(255,255,255,0.03); }
+.ms-db-data-row.editing { background: rgba(33,150,243,0.08); }
+
+.ms-db-data-cell {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(42,42,74,0.5);
+  vertical-align: middle;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-db-data-actions { text-align: center; white-space: nowrap; }
+.ms-db-data-actions .ms-btn-icon { opacity: 0; margin: 0 2px; }
+.ms-db-data-row:hover .ms-db-data-actions .ms-btn-icon { opacity: 0.6; }
+.ms-db-data-row:hover .ms-db-data-actions .ms-btn-icon:hover { opacity: 1; }
+
+.ms-db-null { color: var(--ms-text-secondary); font-style: italic; opacity: 0.5; }
+.ms-db-bool-true { color: var(--ms-success); }
+.ms-db-bool-false { color: var(--ms-danger); }
+.ms-db-number { text-align: right; font-family: var(--ms-font-mono); }
+.ms-db-datetime { font-family: var(--ms-font-mono); font-size: 12px; color: var(--ms-text-secondary); }
+
+.ms-db-text {
+  display: block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms-db-enum-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: rgba(85,85,85,0.2);
+}
+
+.ms-db-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  margin: 1px 2px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: rgba(233,69,96,0.15);
+  color: var(--ms-accent);
+}
+
+.ms-db-json { font-family: var(--ms-font-mono); font-size: 11px; color: var(--ms-text-secondary); white-space: pre; }
+
+.ms-db-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  border: 1px solid var(--ms-border);
+  border-radius: 3px;
+  background: var(--ms-bg-primary);
+  color: var(--ms-text-primary);
+  font-size: 13px;
+  font-family: var(--ms-font);
+}
+
+.ms-db-edit-textarea { min-height: 60px; resize: vertical; }
+.ms-db-edit-checkbox { width: 16px; height: 16px; }
+.ms-db-readonly { color: var(--ms-text-secondary); font-style: italic; }
+
+.ms-db-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid var(--ms-border);
+  background: var(--ms-bg-secondary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ms-db-page-info { color: var(--ms-text-secondary); }
+.ms-db-page-controls { display: flex; align-items: center; gap: 8px; }
+.ms-db-page-current { font-weight: 600; min-width: 60px; text-align: center; }
+
+.ms-db-form-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99998;
+  animation: ms-fade-in 0.15s ease;
+}
+
+.ms-db-form {
+  background: var(--ms-bg-card);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+  box-shadow: var(--ms-shadow-lg);
+  min-width: 400px;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-db-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ms-border);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ms-db-form-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ms-db-form-field { margin-bottom: 12px; }
+.ms-db-form-field:last-child { margin-bottom: 0; }
+
+.ms-db-form-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ms-text-secondary);
+}
+
+.ms-db-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--ms-border);
+}
+
+/* === Dashboard (deprecated) === */
+.ms-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ms-dashboard-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.ms-dashboard-section {
+  background: var(--ms-bg-secondary);
+  border-radius: var(--ms-radius);
+  padding: 20px;
+}
+
+.ms-dashboard-section h3 { margin: 0 0 16px; font-size: 16px; }
+
+/* === Responsive === */
+@media (max-width: 1200px) {
+  .ms-kanban { grid-template-columns: repeat(2, 1fr); }
+  .ms-detail-layout { grid-template-columns: 1fr; }
+  .ms-dashboard-overview { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .ms-panel { width: 180px; }
+  .ms-kanban { grid-template-columns: 1fr; }
+  .ms-dashboard-overview { grid-template-columns: 1fr 1fr; }
+  .ms-review-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+
+/* === Scrollbar (kanban column) === */
+.ms-kanban-column-body::-webkit-scrollbar { width: 6px; }
+.ms-kanban-column-body::-webkit-scrollbar-track { background: transparent; }
+.ms-kanban-column-body::-webkit-scrollbar-thumb { background: var(--ms-border); border-radius: 3px; }

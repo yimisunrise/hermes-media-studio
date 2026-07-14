@@ -1,5 +1,5 @@
-import { createElement, empty } from '../utils/dom.js';
-import { formatDateTime } from '../utils/format.js';
+import { createElement, empty } from '../../framework/utils/dom.js';
+import { formatDateTime } from '../../framework/utils/format.js';
 
 export class PublishView {
   constructor({ api, state }) {
