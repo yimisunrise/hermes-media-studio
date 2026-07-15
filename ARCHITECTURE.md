@@ -185,9 +185,13 @@ media-studio/                          ← 工作空间根目录（WorkspaceAPI 
 │   └── copywriting/                   ← 文案索引分片
 │
 ├── .agent/                            ← 【代理层】Hermes-Agent 任务通信协议
-│   ├── tasks/                         ← 扩展写入：待处理任务
-│   ├── processing/                    ← agent mv 至此：正在处理
-│   └── results/                       ← agent 写入：执行结果
+│   ├── tasks/<uuid>/                  ← 扩展写入：待处理任务
+│   │   ├── job.json                   ← 机器索引（type/status/taskId）
+│   │   ├── brief.md                   ← 任务简报（Markdown，Agent/人类可读）
+│   │   └── files/                     ← 参考附件（可选）
+│   ├── processing/<uuid>/             ← agent mv 至此：正在处理（防重复拾取）
+│   └── results/<uuid>/                ← agent 写入：执行结果
+│       └── result.md                  ← 执行结果（YAML frontmatter + Markdown 正文）
 │
 ├── incoming/                          ← 【投递层】外部文件投递区
 │   └── ...                            ← 任意子目录结构
@@ -275,24 +279,86 @@ incoming/                                      incoming/YYY/MM/<uuid>.<ext>
 ### 4.6 Agent 任务通信协议
 
 Hermes-Agent 是一个独立进程（非浏览器扩展），通过文件系统与扩展通信。
+协议采用**双文件设计**：`job.json`（机器索引）+ `brief.md`（人类/LLM 可读的任务简报）。
+
+#### 4.6.1 目录结构
 
 ```
 .agent/
-├── tasks/                             ← 扩展写入：待处理任务
-│   └── {uuid}/
-│       ├── job.json                   ← 任务定义（type + params）
-│       └── files/                     ← 参考附件（可选）
-├── processing/                        ← agent mv 至此：正在处理（防重复拾取）
-│   └── {uuid}/
-└── results/                           ← agent 写入：执行结果
-    └── {uuid}/
-        ├── result.json                ← 执行结果（success/fail + output）
-        └── files/                     ← 产出附件（可选）
+├── tasks/<uuid>/                     ← 扩展写入：待处理任务
+│   ├── job.json                      ← 机器索引（扩展快速扫描用）
+│   ├── brief.md                      ← 任务简报（Agent 主体读取，人类可读）
+│   └── files/                        ← 参考附件（可选）
+├── processing/<uuid>/                ← agent mv 至此：正在处理（防重复拾取）
+└── results/<uuid>/                   ← agent 写入：执行结果
+    └── result.md                     ← YAML frontmatter + Markdown 正文
 ```
+
+#### 4.6.2 job.json（机器索引）
+
+薄薄一层，只供扩展快速扫描任务队列用，不包含详细参数：
+
+```json
+{
+  "type": "comfyui-generate",
+  "taskId": "a1b2c3d4-...",
+  "status": "pending",
+  "createdAt": "2026-07-14T10:00:00.000Z"
+}
+```
+
+#### 4.6.3 brief.md（任务简报）
+
+Agent 读取这份 Markdown 执行任务。包含 YAML frontmatter 做结构化标记，
+正文用自然语言描述任务要求、规范说明、参数、附件路径等。
+
+```markdown
+---
+type: comfyui-generate
+taskId: a1b2c3d4-...
+createdAt: 2026-07-14T10:00:00.000Z
+---
+
+# 素材生成任务
+
+## 规范说明
+
+作为 HermesAgent，请严格按以下规范执行：
+...
+```
+
+#### 4.6.4 result.md（结果报告）
+
+Agent 执行完成后写入。扩展解析 YAML frontmatter 获取结构化结果，
+正文供人类阅读执行详情。
+
+```markdown
+---
+success: true
+summary: 成功生成 3 张赛博朋克壁纸
+files:
+  - cyber-01.png
+  - cyber-02.png
+  - cyber-03.png
+seeds:
+  - 12345
+  - 12346
+  - 12347
+---
+
+执行详情：
+1. 读取 workflow.json
+2. 设置 seed 分别为 12345/12346/12347
+3. 生成完成
+```
+
+#### 4.6.5 协议要点
 
 | 要点 | 说明 |
 |------|------|
 | UUID 目录协议 | tasks/processing/results 都使用 UUID 目录名，任务 + 附件在同一个目录下 |
+| 双文件设计 | job.json 供机器快速扫描，brief.md 供 Agent 详细读取，各取所需 |
+| Markdown 结果 | result.md 用 YAML frontmatter 存储结构化字段，正文存执行详情 |
 | mv 打标 | agent 拾取后 mv 到 processing/，防止重复拾取，crash 后可从 processing/ 恢复 |
 | 采集即清理 | 扩展采集结果后直接 rm 清理，results/ 不留历史，避免膨胀 |
 | 无锁 | 单进程 agent 无并发竞争，简单可靠 |
@@ -499,7 +565,7 @@ class DataRepository {
 
 **职责**: 为指定表提供通用 CRUD。透明处理分片定位、跨分片合并、默认值填充。
 
-### 6.5 AgentTaskPoller — Agent 任务采集器
+### 6.5 AgentTaskPoller — Agent 任务采集器（传输层）
 
 **路径**: `framework/core/AgentTaskPoller.js`
 
@@ -507,12 +573,20 @@ class DataRepository {
 class AgentTaskPoller {
   constructor({ api })                     // 只需 WorkspaceAPI
 
-  async scan()                             // 扫描 .agent/tasks/ 未拾取任务
+  async scan()                             // 扫描 .agent/tasks/ 未拾取任务（读 job.json）
   async pickup(uuid)                       // mv tasks → processing（防重复）
   async deliver(uuid, result, files)       // 写入结果 + cleanup processing
   async collect()                          // 采集 .agent/results/ 已完成结果
 }
 ```
+
+**职责**: **仅负责传输层**——任务队列管理、文件搬移、结果采集。不解析业务内容，不关心 brief.md/result.md 的具体字段。业务层的任务类型注册、结果分发由 `business/agent/` 实现。
+
+**协议边界**:
+- 写入 job.json（薄元数据）后返回 UUID，业务层用此 UUID 关联后续结果
+- scan() 只读 job.json，不解析 brief.md
+- collect() 返回 result.md 原始文本，不负责解析 frontmatter
+- 结果清理由 collect() 自动完成，业务层无需关心
 
 ### 6.6 ViewManager — 视图管理器
 
@@ -755,6 +829,9 @@ src/
 | 通用状态机 | `ProcessEngine` 待实现 |
 | 通知系统 | `NotificationBus` 待实现 |
 | `api.js` 中业务方法分离 | loadKanbanData/loadDashboardStats 等应移至业务层 |
+| Agent 双文件协议适配 | `AgentTaskPoller` 需适配 job.json + brief.md 双文件写入 |
+| 业务任务层实现 | `business/agent/`（brief生成 + result解析 + handler 派发）待创建 |
+| 业务数据统一 | 现有业务数据（tasks/pipeline/publish-records）迁移到 `business` 库 |
 
 ---
 
@@ -780,6 +857,9 @@ src/
 | 物理层 vs 逻辑层权威 | `db.json` 为物理权威 | `system.database/table` 表是 `db.json` 的可查询视图 |
 | Agent 通信目录 | `.agent/`（dot-dir 隐藏） | 与 `.database/` / `.index/` 保持一致 |
 | Agent 任务结构 | UUID 命名目录（含附件） | 一个目录包含所有相关内容，避免松散文件 |
+| Agent 任务描述格式 | **双文件**：job.json（机器索引）+ brief.md（LLM/人类可读） | 机器快速扫描用 JSON，Agent 理解用 Markdown，各取所需 |
+| Agent 结果格式 | result.md（YAML frontmatter + Markdown 正文） | 扩展解析 frontmatter 得结构化数据，人类阅读正文了解详情 |
+| Agent 传输层 vs 业务层 | AgentTaskPoller 仅传输层，business/agent/ 负业务解析 | 框架与业务分离，AgentTaskPoller 不关心业务内容 |
 | Agent 防重复拾取 | mv tasks → processing | 文件系统 mv 是原子操作，简单可靠 |
 | Agent 结果采集 | 扩展启动/刷新时 collect | 扩展是浏览器端，不适合持久轮询，刷新时批量采集足够 |
 | API 客户端设计 | 类 + 实例方法 | 每个视图可持有独立 API 引用，易于测试 |
