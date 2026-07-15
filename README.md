@@ -18,16 +18,14 @@
 
 | 模块 | 路由 | 用途 |
 |------|------|------|
-| **选题策划** | `#ideas` `#topics` `#themes` | 灵感记录 → 选题管理 → 主题策略（新建） |
-| **看板** | `#kanban` | 四列流水线可视化：生成中 → 待审核 → 已审核 → 发布日历 |
+| **灵感** | `#ideas` | 极轻量灵感随手记，支持快速输入和筛选 |
+| **选题** | `#topics` | 从灵感转为可执行选题，指定内容形态和截止时间 |
+| **主题** | `#themes` | 创作主题/风格定义，关联灵感和选题 |
+| **看板** | `#kanban` | 五列流水线可视化：待处理 → 生成中 → 待审核 → 已通过 → 已拒绝 |
 | **审核** | `#review` | 键盘驱动的批量审核工作流 |
-| **任务** | `#tasks` | 生产任务管理 |
-| **发布** | `#publish` | 发布包编辑器，多素材 + 文案 → 一键发布包 |
-| **素材库** | `#archive` | 全局搜索与历史素材浏览 |
-| **图文库** | `#copywriting` | 文案管理 |
-| **日历** | `#calendar` | 发布排期月/周视图 |
-| **平台配置** | `#platforms` | 发布平台管理 |
-| **数据库** | `#database` | 元数据驱动数据库管理 |
+| **任务** | `#tasks` | 生产任务管理 + 任务详情（含关联素材和文稿） |
+| **素材** | `#assets` | 素材网格管理，支持上传/类型筛选/删除 |
+| **数据库** | `#database` | 元数据驱动数据库管理（系统管理） |
 
 > 更多业务细节参见 [DESIGN.md](DESIGN.md)。
 
@@ -45,10 +43,8 @@
     │                         ├─ .system/boot.json        ← 引导状态
     │                         ├─ .database/               ← Schema + 数据注册
     │                         │   ├─ system/              ← 框架库（库/表元数据）
-    │                         │   └─ business/            ← 业务库（12 张业务表）
-    │                         ├─ .agent/                  ← Agent 任务队列
-    │                         ├─ configs/                 ← 业务配置
-    │                         └─ pipeline/                ← 素材流水线
+    │                         │   └─ business/            ← 业务库（6 张业务表）
+    │                         └─ .agent/                  ← Agent 任务队列
     │
     └─ Hermes Agent ──→ 文件系统通信（job.json + brief.md）
 ```
@@ -59,7 +55,7 @@
 ┌──────────────────────────────────────────────┐
 │  业务层 (business/)                           │
 │  Manifest 定义 → ViewManager 加载 → 业务视图   │
-│  12 个视图、6 个菜单组、5 个初始化模块           │
+│  7 个视图、3 个菜单组、3 个初始化模块            │
 ├──────────────────────────────────────────────┤
 │  框架层 (framework/)                          │
 │  引导编排 / SchemaRegistry / DataRepository   │
@@ -121,7 +117,7 @@ export HERMES_WORKSPACE=/path/to/hermes-media-studio/workspace
 
 ```bash
 # 创建必要的目录结构
-mkdir -p /path/to/workspace/{pipeline/{01-generating,02-pending-review,03-approved,04-scheduled,05-published},themes,platforms,workflows,archive,.trash,.media-studio}
+mkdir -p /path/to/workspace/{.system/init,.database/system,.agent/{tasks,processing,results},assets,configs/{themes,platforms}}
 ```
 
 或使用安装脚本：
@@ -164,10 +160,8 @@ workspace/
 │   ├── boot.json                   # 初始化标记
 │   └── init/                       # InitOrchestrator 模块标记
 │       ├── orchestrator-core.json
-│       ├── workspace.json
 │       ├── schema-registry.json
-│       ├── business-db.json
-│       └── configs.json
+│       └── business-db.json
 │
 ├── .database/                      # 数据库层（Schema + 数据）
 │   ├── databases.json              # 库注册表
@@ -182,14 +176,8 @@ workspace/
 │       ├── ideas/                  # 灵感记录
 │       ├── topics/                 # 选题管理
 │       ├── tasks/                  # 生产任务（月分片）
-│       ├── assets/                 # 素材文件
-│       ├── scripts/                # 文稿/文案
-│       ├── contents/               # 编排后的成品
-│       ├── packages/               # 发布包
-│       ├── platforms/              # 平台配置
-│       ├── schedules/              # 排期条目（月分片）
-│       ├── publish-logs/           # 发布日志（月分片）
-│       └── analytics/              # 数据分析（月分片）
+│       ├── assets/                 # 素材文件（月分片）
+│       └── contents/               # 文稿（版本化管理）
 │
 ├── .agent/                         # Agent 任务通信协议
 │   ├── tasks/<uuid>/               # 待处理任务
@@ -200,27 +188,13 @@ workspace/
 │   └── results/<uuid>/             # 执行结果
 │       └── result.md               # YAML frontmatter + Markdown
 │
-├── .index/                         # 搜索索引/聚合缓存
-├── .files/                         # 文件附件存储（UUID 命名）
+├── assets/                         # 素材文件（按 YYYY-MM/ 分片）
+│   └── YYYY-MM/                    # 月份目录
+│       └── {uuid}-{filename}       # UUID 命名文件
 │
-├── incoming/                       # 外部文件投递区
-├── configs/                        # 业务配置
-│   ├── themes/
-│   ├── platforms/
-│   └── workflows/
-│
-├── pipeline/                       # 素材流水线各阶段
-│   ├── 01-generating/
-│   ├── 02-pending-review/
-│   ├── 03-approved/
-│   ├── 04-scheduled/
-│   └── 05-published/
-│
-├── assets/                         # 素材层
-├── archive/                        # 归档层
-├── tasks/                          # 任务（v2 兼容）
-├── copywriting/                    # 文案（v2 兼容）
-└── .trash/                         # 回收站
+└── configs/                        # 业务配置
+    ├── themes/
+    └── platforms/
 ```
 
 ---
@@ -229,19 +203,15 @@ workspace/
 
 ### 快速开始
 
-1. 点击 Rail 上的 Media Studio 图标（🎬 风格图标）进入面板
+1. 点击 Rail 上的 Media Studio 图标进入面板
 2. 如工作空间未初始化，按提示等待初始化完成
-3. 从 **选题策划** → **思路池** 开始记录灵感
+3. 从 **选题策划** → **灵感** 开始记录灵感
 
-### 内容生产全流程
+### 创作生产流程
 
 ```
-Theme ──→ Idea ──→ Topic ──→ Task ──┬──→ Asset
-  （主题）  （灵感）  （选题）  （任务）  ├──→ Script
-                                     │
-                                  Content ←── 编排
-                                     │
-                                  Package ──→ Platform → PublishLog → Analytics
+Theme ──→ Idea ──→ Topic ──→ Task ──┬──→ Asset（素材）
+  （主题）  （灵感）  （选题）  （任务）  └──→ Content（文稿）
 ```
 
 ### 选题策划（当前开发阶段）
@@ -252,24 +222,23 @@ Theme ──→ Idea ──→ Topic ──→ Task ──┬──→ Asset
 - **选题**（`#topics`）：将灵感转为可执行选题，指定内容形态和截止时间
 - **主题**（`#themes`）：主题策略管理，创建主题并关联灵感和选题
 
-### 素材流水线
+### 创作生产流程
 
-```
-生成 → 待审核 → 已审核 → 排期 → 发布
-```
+当前创作模块支持完整的 Task→Asset/Content 生产链路：
+
+- **任务**（`#tasks`）：创建生产任务（关联选题必填），管理任务状态流转
+- **看板**（`#kanban`）：五列流水线可视化看板
+- **审核**（`#review`）：键盘驱动的批量审核工作流
+- **素材**（`#assets`）：素材网格管理，支持上传到 `workspace/assets/` 和删除
+- **任务详情**：点击任务卡片，查看/上传关联素材，新建/编辑文稿
 
 ### 审核模式快捷键
 
 | 按键 | 操作 |
 |------|------|
 | `1` | 通过 |
-| `2` | 删除（移入回收站） |
-| `3` | 稍后处理 |
-| `4` | 标星 |
-| `5` | 添加备注 |
-| `←` `→` | 上/下一个素材 |
-| `Enter` | 全屏预览 |
-| `Esc` | 退出预览 |
+| `2` | 拒绝 |
+| `←` `→` | 上/下一个任务 |
 
 ---
 
@@ -300,7 +269,7 @@ src/
 ├── app.css                         # @import framework/app.css + business/app.css
 ├── assets/logo.svg                 # Rail 按钮图标
 │
-├── framework/                      # 可复用框架（零业务依赖，18 文件）
+├── framework/                      # 可复用框架（零业务依赖）
 │   ├── app.js                      # 引导编排
 │   ├── app.css                     # 框架样式
 │   ├── lib/                        # 基础设施
@@ -311,53 +280,47 @@ src/
 │   ├── boot/
 │   │   └── BootManager.js          # 引导状态管理
 │   ├── core/
+│   │   ├── index.js                # 统一导出 5 个核心类
 │   │   ├── SchemaRegistry.js       # 库/表元数据管理
 │   │   ├── DataRepository.js       # 通用 CRUD + 透明分片
 │   │   ├── InitOrchestrator.js     # 模块化初始化编排
 │   │   └── AgentTaskPoller.js      # Agent 任务通信（传输层）
 │   ├── ui/
-│   │   ├── MenuManager.js          # Manifest 驱动菜单渲染
+│   │   ├── MenuManager.js          # Manifest 驱动菜单渲染 + 内联 SVG 图标
 │   │   └── ViewManager.js          # Manifest 驱动视图加载 + 错误边界
 │   └── utils/
 │       ├── dom.js                  # DOM 工具函数
-│       ├── format.js               # 格式化工具
-│       ├── meta.js                 # 素材元数据读写
-│       ├── search.js               # 搜索工具
-│       └── stateMachine.js         # 状态机
+│       └── format.js               # 格式化工具
 │
-├── business/                       # 业务层（Manifest 注入，18 文件）
+├── business/                       # 业务层（Manifest 注入）
 │   ├── index.js                    # 业务引导入口
-│   ├── manifest.js                 # 契约定义：12 视图 + 6 菜单组 + 5 initDefs
+│   ├── manifest.js                 # 契约：7 视图 + 3 菜单组 + 3 initDefs
 │   ├── app.css                     # 业务样式
+│   ├── data/
+│   │   └── index.js                # 仓储工厂：repo / taskRepo / assetRepo / contentRepo
 │   ├── init/                       # 初始化定义
 │   │   ├── InitOrchestrator.init-def.js
-│   │   ├── workspace.init-def.js
 │   │   ├── SchemaRegistry.init-def.js
-│   │   ├── business-db.init-def.js
-│   │   └── configs.init-def.js
+│   │   └── business-db.init-def.js
 │   ├── views/                      # 业务视图
 │   │   ├── InitOverlay.js          # 初始化覆盖层
 │   │   ├── KanbanBoard.js          # 看板流水线
 │   │   ├── ReviewMode.js           # 审核模式
-│   │   ├── TasksView.js            # 任务管理
-│   │   ├── PublishView.js          # 发布包编辑器
-│   │   ├── MediaArchive.js         # 素材库
-│   │   ├── CopywritingView.js      # 图文库
-│   │   ├── CalendarView.js         # 发布日历
-│   │   ├── PlatformConfig.js       # 平台配置
-│   │   ├── DatabaseManager.js      # 数据库管理
+│   │   ├── TasksView.js            # 任务管理 + 选题必填
+│   │   ├── TaskDetail.js           # 任务详情（素材+文稿）
+│   │   ├── AssetGallery.js         # 素材网格管理
+│   │   ├── ContentEditor.js        # 文稿 Markdown 编辑器
 │   │   ├── IdeaBoard.js            # 灵感看板（选题策划）
 │   │   ├── TopicBoard.js           # 选题看板（选题策划）
-│   │   └── ThemeStrategy.js        # 主题策略（选题策划）
-│   └── components/                 # 可复用 UI 组件
-│       ├── MediaCard.js
-│       └── MediaDetail.js
+│   │   ├── ThemeStrategy.js        # 主题策略（选题策划）
+│   │   ├── DatabaseManager.js      # 数据库管理
+│   │   └── components/
+│   │       └── AssetCard.js        # 素材卡片组件
 │
 └── scripts/
     ├── install.sh                  # 初始化工作空间
     ├── uninstall.sh                # 卸载扩展
-    ├── update.sh                   # 更新（git pull）
-    └── migrate-v2.sh               # v2 目录迁移脚本
+    └── update.sh                   # 更新（git pull）
 ```
 
 ### 核心概念

@@ -62,4 +62,4 @@ bash -n src/scripts/install.sh
 | 初始化工作空间 | `src/scripts/install.sh` |
 | 卸载 | `src/scripts/uninstall.sh`（需确认，有破坏性） |
 | 更新 | `src/scripts/update.sh`（git pull） |
-| 运行时 hash 路由 | `#kanban`、`#review`、`#tasks`、`#publish`、`#copywriting`、`#platforms`、`#calendar`、`#archive`、`#init` |
+| 运行时 hash 路由 | `#kanban`、`#review`、`#tasks`、`#assets`、`#ideas`、`#topics`、`#themes`、`#database`、`#init` |

@@ -111,31 +111,26 @@
   └ 本地已有素材              ├ 标签/主题
                               └ 流水线状态
 
-撰写文稿                  → Script                         （Agent）辅助生成
-  ├ 纯文字                    ├ type: 图文/视频脚本/纯文字      文案初稿
-  ├ 图文混排                  ├ 关联 Task/Asset              多版本建议
-  └ 视频脚本                  └ 多版本（A/B 测试用）
+撰写文稿                  → Content                        （Agent）辅助生成
+  ├ Markdown 编辑            ├ 版本管理（draft→finalized）    文案初稿
+  ├ 实时预览                 ├ 关联 Task/Topic              多版本建议
+  └ 定稿/草稿切换            └ 定稿后只读
 ```
 
-**素材流水线状态**（复用现有 stateMachine）：
-
+**素材生命周期**：
 ```
-素材生命周期:
-  生成中 → 待审核 → 已审核 → 已使用 → 归档
-                   ↘ 未通过 → 退回
+生成中 → 待审核 → 已审核 → 已使用 → 归档
 ```
 
 **文稿生命周期**：
-
 ```
-文稿生命周期:
-  草稿 → 待审核 → 已审核 → 已定稿
-                ↘ 退回修改
+草稿 → 定稿
+     ↘ 新版本（定稿后可创建新版本继续编辑）
 ```
 
 **关键设计点**：
-- Task 是"生产任务"，Asset 和 Script 是"产出物"——一对多关系
-- 一个 Task 可以产出一张图（media）+ 一段文案（copywriting）
+- Task 是"生产任务"，Asset 和 Content 是"产出物"——一对多关系
+- 一个 Task 可以产出一张图（asset）+ 一篇文稿（content）
 - Agent 模式：系统自动创建 Task → HermesAgent 执行 → 结果自动回填
 - 手工模式：用户自己准备素材，系统只做记录和流转
 
@@ -263,9 +258,8 @@ Theme ──┬──→ Idea ──→ Topic ──→ Task ──┬──→ 
 | **Idea** | `ideas` | 策划 | id, title, summary, themeId, tags, refLinks, createdAt | 灵感记录 |
 | **Topic** | `topics` | 选题 | id, ideaId, themeId, contentType, dueDate, status | 选题执行实例 |
 | **Task** | `tasks` | 创作 | id, topicId, type, mode, status, brief, assignedAgent | 生产任务（已有） |
-| **Asset** | `assets` | 创作 | id, taskId, filePath, type, meta, status, pipelineStage | 素材文件（已有雏形） |
-| **Script** | `scripts` | 创作 | id, taskId, type, content, version, status | 文稿/文案 |
-| **Content** | `contents` | 编排 | id, taskId, assets[], scripts[], type, layout, previewUrls, status | 编排后的成品 |
+| **Asset** | `assets` | 创作 | id, taskId, topicId, filePath, fileName, type, mimeType, fileSize, status | 素材文件（已实现） |
+| **Content** | `contents` | 创作 | id, taskId, topicId, title, content(Markdown), version, status | 文稿/文案（已实现，版本化管理） |
 | **Package** | `packages` | 发布 | id, contentId, platformIds[], scheduledAt, status, publishedUrls | 发布包 |
 | **Platform** | `platforms` | 配置 | id, name, type, publishConfig, apiConfig | 平台定义（已有雏形） |
 | **Schedule** | `schedules` | 发布 | id, packageId, platformId, scheduledAt, status | 排期条目 |
@@ -279,8 +273,7 @@ Theme(1) ──→ Idea(N)       一个主题可以有多个灵感
 Idea(1)  ──→ Topic(N)      一个灵感可以有多个选题（多平台适配）
 Topic(1) ──→ Task(N)       一个选题可以拆分多个生产任务
 Task(1)  ──→ Asset(N)      一个任务产出一个或多个素材
-Task(1)  ──→ Script(N)     一个任务产出一个或多个文稿版本
-Task(1)  ──→ Content(N)    一个任务可编排为多个内容版本
+Task(1)  ──→ Content(N)    一个任务产出一个或多个文稿版本
 Content(1)─→ Package(N)    一个内容可发往多个平台
 Package(1)─→ PublishLog(N) 一个发布包产生多条发布记录
 Package(1)─→ Analytics(N)  一个发布包有多条数据记录
@@ -305,8 +298,7 @@ Package(1)─→ Analytics(N)  一个发布包有多条数据记录
     ├── topics/             # 选题
     ├── tasks/              # 任务（月分片）
     ├── assets/             # 素材（月分片）
-    ├── scripts/            # 文稿
-    ├── contents/           # 内容
+    ├── contents/           # 文稿（版本化管理）
     ├── packages/           # 发布包
     ├── platforms/          # 平台
     ├── schedules/          # 排期（月分片）
@@ -422,44 +414,20 @@ Package(1)─→ Analytics(N)  一个发布包有多条数据记录
 }
 ```
 
-#### ⑥ scripts
+#### ⑥ contents（文稿，替代原 scripts）
 
 ```json
 {
-  "id": "scripts", "label": "文稿", "displayField": "title",
+  "id": "contents", "label": "文稿", "displayField": "title",
   "shard": { "type": "none" },
   "fields": [
     { "id": "id", "type": "uuid", "isId": true },
     { "id": "taskId", "type": "reference", "label": "来源任务", "ref": { "database": "business", "table": "tasks" } },
+    { "id": "topicId", "type": "reference", "label": "关联选题", "ref": { "database": "business", "table": "topics" } },
     { "id": "title", "type": "string", "label": "文稿标题" },
-    { "id": "type", "type": "enum", "label": "文稿类型", "enum": ["copywriting", "caption", "script", "outline"] },
     { "id": "content", "type": "text", "label": "正文（Markdown）" },
     { "id": "version", "type": "number", "label": "版本号", "defaultValue": 1 },
-    { "id": "status", "type": "enum", "label": "状态", "enum": ["draft", "finalized", "archived"], "defaultValue": "draft" },
-    { "id": "createdAt", "type": "datetime", "autoSet": "created" },
-    { "id": "updatedAt", "type": "datetime", "autoSet": "updated" }
-  ]
-}
-```
-
-#### ⑦ contents
-
-```json
-{
-  "id": "contents", "label": "内容", "displayField": "title",
-  "shard": { "type": "none" },
-  "fields": [
-    { "id": "id", "type": "uuid", "isId": true },
-    { "id": "taskId", "type": "reference", "label": "来源任务", "ref": { "database": "business", "table": "tasks" } },
-    { "id": "title", "type": "string", "label": "内容标题", "required": true },
-    { "id": "type", "type": "enum", "label": "内容类型", "enum": ["graphic", "video", "text"] },
-    { "id": "assetIds", "type": "array", "label": "素材列表", "items": { "type": "reference", "ref": { "database": "business", "table": "assets" } } },
-    { "id": "scriptIds", "type": "array", "label": "文稿列表", "items": { "type": "reference", "ref": { "database": "business", "table": "scripts" } } },
-    { "id": "coverAssetId", "type": "reference", "label": "封面素材", "ref": { "database": "business", "table": "assets" } },
-    { "id": "body", "type": "text", "label": "正文（Markdown）" },
-    { "id": "layout", "type": "string", "label": "布局模板" },
-    { "id": "previewUrls", "type": "json", "label": "预览链接" },
-    { "id": "status", "type": "enum", "label": "状态", "enum": ["draft", "finalized", "published"], "defaultValue": "draft" },
+    { "id": "status", "type": "enum", "label": "状态", "enum": ["draft", "finalized"], "defaultValue": "draft" },
     { "id": "createdAt", "type": "datetime", "autoSet": "created" },
     { "id": "updatedAt", "type": "datetime", "autoSet": "updated" }
   ]
@@ -797,75 +765,73 @@ function parseFrontmatter(md) {
 
 ## 五、视图与业务模块规划
 
-### 5.1 视图对照
+### 5.1 当前视图清单
 
-基于数据模型的视图规划（对比当前 manifest 中的 9 个视图）：
+当前 manifest 注册 7 个视图，3 个菜单组：
 
-| 当前视图 | 调整方案 | 说明 |
-|---------|---------|------|
-| KanbanBoard | **保留改造** | 从读取 pipeline/ 改为读取 Task + Asset 状态 |
-| ReviewMode | **保留改造** | 从扫描 pipeline/ 改为扫描 Asset.status |
-| TasksView | **保留改造** | 改为读取 business.tasks 表 |
-| PublishView | **保留改造** | 改为读取 business.packages + business.contents |
-| CopywritingView | **合并** | 改为 Script/Content 浏览，功能并入素材库 |
-| CalendarView | **保留改造** | 改为读取 Package.scheduledAt |
-| MediaArchive | **保留改造** | 改为读取 business.assets |
-| PlatformConfig | **保留** | 改为读取 business.platforms 表 |
-| DatabaseManager | **保留** | 元数据管理，无需改动 |
+```
+选题策划: 灵感 / 选题 / 主题
+生产流程: 看板 / 审核 / 任务 / 素材
+系统管理: 数据库
+```
 
-### 5.2 新增视图
+| 视图 | 路由 | 数据源 | 状态 |
+|------|------|--------|------|
+| KanbanBoard | `#kanban` | taskRepo | ✅ 已迁移到 DataRepository |
+| ReviewMode | `#review` | taskRepo | ✅ 已迁移到 DataRepository |
+| TasksView | `#tasks` | taskRepo + repo | ✅ 已迁移，含 TaskDetail |
+| AssetGallery | `#assets` | assetRepo | ✅ 已实现，含 AssetCard |
+| IdeaBoard | `#ideas` | repo ideas | ✅ 已实现（策划模块） |
+| TopicBoard | `#topics` | repo topics | ✅ 已实现（策划模块） |
+| ThemeStrategy | `#themes` | repo themes | ✅ 已实现（策划模块） |
+| ContentEditor | 内嵌于 TaskDetail | contentRepo | ✅ 已实现（Markdown 编辑） |
+| DatabaseManager | `#database` | SchemaRegistry | ✅ 系统管理 |
+
+### 5.2 待建视图（未来阶段）
 
 | 视图 | 路由 | 职责 |
 |------|------|------|
-| **思路池** (IdeaBoard) | `#ideas` | 灵感记录/浏览/筛选 |
-| **选题面板** (TopicBoard) | `#topics` | 从 Idea 到 Topic 的转换 |
-| **生成控制台** (GenConsole) | `#generation` | ComfyUI 批量生成 + Agent 任务管理 |
+| **发布包管理** (PackageManager) | `#publish` | 内容编排 + 多平台发布 |
+| **平台配置** (PlatformConfig) | `#platforms` | 发布平台 CRUD |
+| **发布日历** (PublishCalendar) | `#calendar` | 排期月/周视图 |
 | **数据看板** (Dashboard) | `#dashboard` | Analytics 展示 + 爆款检测 |
-| **主题策略** (ThemeStrategy) | `#themes` | 主题库管理 + 策略配置 |
-
-### 5.3 更新后的视图清单
-
-```
-生产流程:  看板 / 审核 / 任务 / 生成控制台
-发布管理:  发布
-资源管理:  素材库 / 日历 / 思路池 / 选题面板
-运营配置:  平台配置 / 主题策略 / 数据看板
-系统管理:  数据库
-```
 
 ---
 
 ## 六、实施路线
 
-### 阶段一：策划模块（当前焦点）
+### 阶段一：策划模块（✅ 已完成）
 
-1. 在 SchemaRegistry 中创建 `business` 库，注册 themes/ideas/topics 三张表
-2. 实现 ThemeStrategy 视图（主题库管理：增删改查）
-3. 实现 IdeaBoard 视图（思路池：灵感随手记 + 筛选）
-4. 实现 TopicBoard 视图（选题面板：从 Idea 创建 Topic）
-5. 更新 manifest 和 menu，注册新视图
+- `business` 库创建，themes/ideas/topics 三张表注册
+- ThemeStrategy 视图（主题库：增删改查）
+- IdeaBoard 视图（灵感随手记 + 筛选）
+- TopicBoard 视图（选题面板：从 Idea 创建 Topic）
 
-### 阶段二：核心流程打通
+### 阶段二：创作模块（✅ 已完成）
 
-1. Idea → Topic → Task 链路
-2. Task → Asset/Script 产出管理
-3. Content 编排 + Package 发布
+- 创作模块迁移到 DataRepository（TasksView/KanbanBoard/ReviewMode）
+- AssetGallery 视图（素材网格 + 上传/筛选/删除）
+- ContentEditor 视图（Markdown 分屏编辑 + 版本管理）
+- TaskDetail 视图（任务 + 素材 + 文稿统一管理）
+- `scripts` 表 → `contents` 表重命名
 
-### 阶段三：Agent 集成
+### 阶段三：发布模块（待开发）
+
+1. Package 发布包管理
+2. Platform 平台配置
+3. PublishCalendar 发布日历
+
+### 阶段四：Agent 集成（待开发）
 
 1. ComfyUI 素材生成闭环
 2. AI 文案辅助
 3. 自动发布
 
-### 阶段四：分析与优化
+### 阶段五：分析与优化（待开发）
 
 1. Analytics 数据采集
 2. Dashboard 展示
 3. 爆款检测与策略反馈
-
-### 阶段五：api.js 拆分
-
-将业务方法从 `framework/lib/api.js` 迁出到 `business/data/`，只保留底层文件操作。
 
 ---
 

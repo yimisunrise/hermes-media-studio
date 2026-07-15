@@ -51,14 +51,14 @@
 │  │          AgentTaskPoller / + index 统一导出                   │   │
 │  │  boot/    BootManager — .system/boot.json 生命周期管理        │   │
 │  │  ui/      MenuManager / ViewManager — manifest 驱动的渲染器   │   │
-│  │  utils/   dom / format / meta / search / stateMachine        │   │
+│  │  utils/   dom / format                                       │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │                                                                      │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  数据层 (Data Layer) — 运行时 + 文件系统                              │
 │                                                                      │
-│  职责: 库/表元数据管理、通用记录 CRUD、文件附件扫描、Agent 通信         │
+│  职责: 库/表元数据管理、通用记录 CRUD、Agent 通信                       │
 │  存储: 所有数据以 JSON 文件存储在 Workspace 文件系统中                │
 │                                                                      │
 │  ┌──────────────────────────────────────────────────────────────┐   │
@@ -87,6 +87,7 @@
 | 业务 → 框架 | 业务调用框架模块 | `new MenuManager({ manifest })` |
 | 业务 → 数据 | 通过框架的 SchemaRegistry | `orchestrator.run()` → handler 内使用 `ctx.schemaRegistry` |
 | 框架 → 数据 | 直接使用 SchemaRegistry | `bootstrapFramework()` 内创建 SchemaRegistry 实例 |
+| 业务 → 文件 | 通过 WorkspaceAPI + assetRepo | `api.writeFile(path, content)` 写入 workspace/assets/ |
 
 ### 关键约束
 
@@ -106,7 +107,7 @@ manifest.js → 是业务对框架的唯一契约    ← 框架只读取 manifes
 一个数据库是一个独立的数据空间，拥有独立的表集合。库的 schema 和数据统一存储在 `.database/<数据库名>/` 目录下。
 
 - `system` — 框架内置库，管理数据库注册和表结构定义
-- 用户可创建任意数量的业务库（如 `main`、`blog`、`analytics`）
+- 用户可创建任意数量的业务库（当前仅 `business` 库）
 
 ### 表 (Table)
 
@@ -139,8 +140,8 @@ manifest.js → 是业务对框架的唯一契约    ← 框架只读取 manifes
 流程是业务逻辑的编排定义。当前通过以下方式实现：
 
 - **InitOrchestrator** — 模块化的初始化流程编排（依赖拓扑排序、版本化标记）
-- **stateMachine** — 基于 `configs/workflows/task-lifecycle.json` 的状态机
-- 流程定义不存储在框架中，由用户通过业务配置实现
+- 视图内状态转换 — Task 状态硬编码于业务视图（pending→generating→review→approved/rejected）
+- 流程定义不存储在框架中，由业务视图自行实现
 
 ---
 
@@ -155,34 +156,25 @@ media-studio/                          ← 工作空间根目录（WorkspaceAPI 
 │   ├── boot.json                      ← 初始化标记: version / init_state / last_boot
 │   └── init/                          ← InitOrchestrator 模块标记
 │       ├── orchestrator-core.json     ← {"version":"1.0.0","completedAt":"..."}
-│       ├── workspace.json
 │       ├── schema-registry.json
-│       └── configs.json
+│       └── business-db.json
 │
 ├── .database/                         ← 【数据库层】所有库/表的 schema + 数据
-│   ├── databases.json                 ← 库注册: {"databases": ["system", "main", ...]}
+│   ├── databases.json                 ← 库注册: {"databases": ["system", "business"]}
 │   │
 │   ├── system/                        ← 系统库（框架内置，管理自身元数据）
 │   │   ├── db.json                    ← 表清单: {"tables": ["database", "table"]}
 │   │   ├── database/                  ← database 表（schema + data）
 │   │   └── table/                     ← table 表（自举锚点）
 │   │
-│   ├── main/                          ← 业务库（用户数据）
-│   │   ├── db.json                    ← {"tables": ["tasks", "assets", ...]}
-│   │   ├── tasks/                     ← 表目录（schema + data）
-│   │   └── assets/
-│   │
-│   └── ...                            ← 用户创建的库
-│
-├── .files/                            ← 【文件层】文件附件存储，UUID 命名
-│   ├── manifest.json                  ← shard 清单 + 最后扫描时间
-│   └── YYYY/MM/<uuid>.<ext>          ← UUID 命名文件 + .meta.json sidecar
-│
-├── .index/                            ← 【索引层】搜索索引、聚合缓存
-│   ├── manifest.json
-│   ├── pipeline.json                  ← 流水线索引
-│   ├── tasks.json                     ← 任务索引
-│   └── copywriting/                   ← 文案索引分片
+│   └── business/                      ← 业务库（全部业务数据）
+│       ├── db.json                    ← {"tables": ["themes", "ideas", "topics", "tasks", "assets", "contents"]}
+│       ├── themes/                    ← 主题管理（schema + data，不分片）
+│       ├── ideas/                     ← 灵感记录（不分片）
+│       ├── topics/                    ← 选题管理（不分片）
+│       ├── tasks/                     ← 生产任务（月度分片）
+│       ├── assets/                    ← 素材文件（月度分片）
+│       └── contents/                  ← 文稿/文案（不分片，版本化管理）
 │
 ├── .agent/                            ← 【代理层】Hermes-Agent 任务通信协议
 │   ├── tasks/<uuid>/                  ← 扩展写入：待处理任务
@@ -193,26 +185,13 @@ media-studio/                          ← 工作空间根目录（WorkspaceAPI 
 │   └── results/<uuid>/                ← agent 写入：执行结果
 │       └── result.md                  ← 执行结果（YAML frontmatter + Markdown 正文）
 │
-├── incoming/                          ← 【投递层】外部文件投递区
-│   └── ...                            ← 任意子目录结构
+├── assets/                            ← 【素材文件】按 YYYY-MM/ 分片存储
+│   └── YYYY-MM/
+│       └── {uuid}-{filename}         ← 素材文件（数据库记录路径引用）
 │
-├── configs/                           ← 【业务配置层】
-│   ├── themes/                        ← 主题配置
-│   ├── platforms/                     ← 平台发布配置
-│   └── workflows/                     ← 工作流定义（如 task-lifecycle.json）
-│
-├── pipeline/                          ← 【流水线层】素材各阶段引用
-│   ├── 01-generating/
-│   ├── 02-pending-review/
-│   ├── 03-approved/
-│   ├── 04-scheduled/
-│   └── 05-published/
-│
-├── assets/                            ← 【素材层】按主题/日期分片
-├── archive/                           ← 【归档层】已归档素材
-├── tasks/                             ← 【任务层】任务目录（UUID 命名）
-├── copywriting/                       ← 【文案层】文案条目
-└── .trash/                            ← 【回收站】删除素材暂存
+└── configs/                           ← 【业务配置层】
+    ├── themes/                        ← 主题配置
+    └── platforms/                     ← 平台发布配置
 ```
 
 ### 4.2 目录层职责
@@ -262,18 +241,16 @@ media-studio/                          ← 工作空间根目录（WorkspaceAPI 
 - 框架以 `databases.json` / `db.json` 为权威，`system.database` / `system.table` 表是它的可查询视图
 - 增删库/表时优先更新登记文件，再更新表数据（确保物理层先就绪）
 
-### 4.5 文件附件存储（设计阶段，尚未实现）
+### 4.5 素材文件存储
+
+素材文件直接存储在 `workspace/assets/` 目录下，按月份分片，数据库记录路径和元数据。
 
 ```
-incoming/                                      incoming/YYY/MM/<uuid>.<ext>
-     │                                              │
-     │  FileScanner.scan() (待实现)                  │
-     │  ├── 递归遍历 incoming/ 下所有文件              │
-     │  ├── 去重检查 (size + original_name)           │
-     │  ├── UUID 重命名 + move 到 .files/             │
-     │  └── 写入 DB 记录 + sidecar meta               │
-     ▼                                              ▼
-  .files/YYYY/MM/<uuid>.<ext>              .files/YYYY/MM/<uuid>.meta.json
+assets/YYYY-MM/{uuid}-{filename}
+        │
+        ├── 文件由用户上传或 Agent 生成
+        ├── 数据库 assets 表记录 filePath/fileName/type/mimeType/fileSize
+        └── 视图通过 api.readFile(filePath) 读取文件数据
 ```
 
 ### 4.6 Agent 任务通信协议
@@ -619,7 +596,7 @@ class MenuManager {
 }
 ```
 
-**职责**: 从 manifest 读取菜单组定义和内联 SVG 图标，渲染可展开/折叠的侧栏菜单。菜单项点击通过 `navigate` 回调触发路由切换。ICONS 对象（14 个 SVG）硬编码在 MenuManager 中。
+**职责**: 从 manifest 读取菜单组定义和内联 SVG 图标，渲染可展开/折叠的侧栏菜单。菜单项点击通过 `navigate` 回调触发路由切换。ICONS 对象（16 个 SVG）硬编码在 MenuManager 中。
 
 ---
 
@@ -655,9 +632,8 @@ class MenuManager {
     │
     ├── 注册 init-defs ← manifest.initDefs → orchestrator.register()
     │   ├── orchestrator-core: 创建 .system/init/ 目录
-    │   ├── workspace: 创建 8 个工作空间目录
-    │   ├── schema-registry: bootstrapSystemDb + main 库
-    │   └── configs: 写入默认 task-lifecycle.json
+    │   ├── schema-registry: bootstrapSystemDb + business 库
+    │   └── business-db: 创建 6 张业务表
     │
     ├── orchestrator.migrateIfNeeded()
     │   └── 检测旧 boot.json(init_state=done) + 无 .system/init/ → 迁移
@@ -668,7 +644,7 @@ class MenuManager {
     ├── MenuManager(manifest).render(panel)
     │
     ├── ViewManager(manifest).initModules()
-    │   └── 动态 import 9 个视图 → 注册路由
+    │   └── 动态 import 7 个视图 → 注册路由
     │
     ├── router.init()
     ├── Sidebar.init() ← 注入 Rail 按钮 + 移动端链接
@@ -680,13 +656,11 @@ class MenuManager {
 ```
 orchestrator-core (无依赖)
     │
-    ├── workspace (dependsOn: orchestrator-core)
-    │
-    └── schema-registry (dependsOn: workspace)
-    │       │
-    │       └── configs (dependsOn: workspace)
-    │
-    执行顺序: orchestrator-core → workspace → schema-registry → configs
+    └── schema-registry (dependsOn: orchestrator-core)
+            │
+            └── business-db (dependsOn: schema-registry)
+
+执行顺序: orchestrator-core → schema-registry → business-db
 ```
 
 ---
@@ -704,7 +678,7 @@ src/
 │   ├── app.css                         # 框架样式（布局/菜单/表单/弹窗/滚动条/工具类）
 │   │
 │   ├── lib/                            # 基础设施
-│   │   ├── api.js                      # Workspace API 客户端（818 行）
+│   │   ├── api.js                      # Workspace API 客户端
 │   │   ├── router.js                   # Hash 路由
 │   │   ├── state.js                    # 事件驱动状态管理
 │   │   └── sidebar.js                  # WebUI Rail/侧栏集成（单例模块）
@@ -717,50 +691,48 @@ src/
 │   │   ├── SchemaRegistry.js           # 库/表元数据管理
 │   │   ├── DataRepository.js           # 通用 CRUD + 分片
 │   │   ├── InitOrchestrator.js         # 模块化初始化编排
-│   │   └── AgentTaskPoller.js          # Agent 任务通信
+│   │   └── AgentTaskPoller.js          # Agent 任务通信（传输层）
 │   │
 │   ├── ui/                             # UI 编排
-│   │   ├── MenuManager.js              # Manifest 驱动菜单
+│   │   ├── MenuManager.js              # Manifest 驱动菜单 + 内联 SVG 图标
 │   │   └── ViewManager.js              # Manifest 驱动视图 + 错误边界
 │   │
 │   └── utils/                          # 工具函数
 │       ├── dom.js                      # createElement / empty / debounce / 等
-│       ├── format.js                   # 格式化工具
-│       ├── meta.js                     # 素材元数据读写
-│       ├── search.js                   # 搜索工具
-│       └── stateMachine.js             # 状态机（依赖业务配置文件）
+│       └── format.js                   # 格式化工具
 │
 ├── business/                           # 业务层（manifest 注入）
 │   ├── index.js                        # 业务引导
-│   ├── manifest.js                     # 契约：9 views + 5 menuGroups + 4 initDefs
-│   ├── app.css                         # 业务样式（看板/审核/日历/数据库管理）
+│   ├── manifest.js                     # 契约：7 views + 3 menuGroups + 3 initDefs
+│   ├── app.css                         # 业务样式（看板/审核/数据库管理）
+│   │
+│   ├── data/                           # 数据层
+│   │   └── index.js                    # 仓储工厂：repo / taskRepo / assetRepo / contentRepo
 │   │
 │   ├── init/                           # 初始化定义
 │   │   ├── InitOrchestrator.init-def.js
-│   │   ├── workspace.init-def.js
 │   │   ├── SchemaRegistry.init-def.js
-│   │   └── configs.init-def.js
+│   │   └── business-db.init-def.js
 │   │
 │   ├── views/                          # 业务视图
 │   │   ├── InitOverlay.js              # 初始化覆盖层
-│   │   ├── KanbanBoard.js              # 看板流水线
-│   │   ├── ReviewMode.js               # 审核模式
-│   │   ├── TasksView.js                # 任务管理
-│   │   ├── PublishView.js              # 发布包编辑器
-│   │   ├── MediaArchive.js             # 素材库
-│   │   ├── CopywritingView.js          # 图文库
-│   │   ├── CalendarView.js             # 发布日历
-│   │   ├── PlatformConfig.js           # 平台配置
-│   │   ├── DatabaseManager.js          # 数据库管理
-│   │   └── components/                 # 可复用 UI 组件
-│   │       ├── MediaCard.js
-│   │       └── MediaDetail.js
+│   │   ├── KanbanBoard.js              # 看板流水线（taskRepo）
+│   │   ├── ReviewMode.js               # 审核模式（taskRepo）
+│   │   ├── TasksView.js                # 任务管理（taskRepo + TaskDetail）
+│   │   ├── TaskDetail.js               # 任务详情（素材+文稿，assetRepo + contentRepo）
+│   │   ├── AssetGallery.js             # 素材管理（assetRepo，上传/筛选/删除）
+│   │   ├── ContentEditor.js            # 文稿编辑器（Markdown 分屏+版本管理）
+│   │   ├── IdeaBoard.js                # 灵感看板（repo ideas）
+│   │   ├── TopicBoard.js               # 选题看板（repo topics）
+│   │   ├── ThemeStrategy.js            # 主题策略（repo themes）
+│   │   └── DatabaseManager.js          # 数据库管理（SchemaRegistry）
+│   │       └── components/
+│   │           └── AssetCard.js         # 素材卡片组件
 │
 └── scripts/
     ├── install.sh                      # 初始化工作空间
     ├── uninstall.sh                    # 卸载扩展
-    ├── update.sh                       # 更新（git pull）
-    └── migrate-v2.sh                   # v2 目录迁移脚本
+    └── update.sh                       # 更新（git pull）
 ```
 
 ---
@@ -793,13 +765,12 @@ src/
 - 不规定视图内部布局（业务视图自行实现）
 - 不提供 Agent 进程本身（AgentTaskPoller 只负责文件层通信）
 - 不提供外部集成（API/Webhook 等）
-- 不存储业务配置（配置在 `configs/` 目录，由业务写入）
 
 ### 尚未实现的框架组件
 
 | 组件 | 状态 | 说明 |
 |------|------|------|
-| `FileScanner` | 设计阶段 | 文件附件扫描（incoming/ → .files/） |
+| `FileScanner` | 已废弃 | 文件附件扫描需求已被 DataRepository + assets/ 分片替代 |
 | `ProcessEngine` | 设计阶段 | 通用状态机引擎 |
 | `NotificationBus` | 设计阶段 | 全局通知/Toast 系统 |
 
@@ -811,27 +782,25 @@ src/
 
 | 里程碑 | 说明 |
 |--------|------|
-| 框架-业务分离 | `framework/` (18 文件) 与 `business/` (18 文件) 完全解耦 |
+| 框架-业务分离 | `framework/` 与 `business/` 完全解耦 |
 | Manifest 驱动 | `ViewManager` / `MenuManager` 通过 manifest 配置 |
-| 三层入口 | `app.js(24行)` → `framework/app.js` → `business/index.js` |
+| 三层入口 | `app.js` → `framework/app.js` → `business/index.js` |
 | 引导拆分 | BootManager 独立 + InitOrchestrator 模块化 |
 | CSS 分离 | framework/business CSS 独立，app.css 仅 @import |
 | SchemaRegistry 精简 | 移除了 boot 逻辑，仅含 schema CRUD |
-| 旧目录清理 | `lib/` / `utils/` / `core/` / `ui/` / `views/` / `init/` 已删除 |
+| 创作模块迁移 | TasksView/KanbanBoard/ReviewMode 迁移到 DataRepository |
+| 策划模块实现 | ThemeStrategy/IdeaBoard/TopicBoard 视图完整实现 |
+| 素材+文稿管理 | AssetGallery/ContentEditor/TaskDetail 视图完整实现 |
+| 遗留代码清理 | 删除 5 个遗留视图、2 个 init-def、空目录、死代码 |
 
 ### 待处理
 
 | 事项 | 说明 |
 |------|------|
-| `api.js` 瘦身 | 818 行中混有大量业务方法（kanban/dashboard/platform/copywriting/task），应移至 `business/` |
-| `ARCHITECTURE.md` 同步 | 本文档已完成同步 |
-| 文件附件扫描 | `FileScanner` 待实现 |
-| 通用状态机 | `ProcessEngine` 待实现 |
+| Agent 业务层 | BriefBuilder/ResultParser/AgentHandler 待实现 |
+| 素材文件扫描 | 从 assets/ 目录自动同步到数据库 |
 | 通知系统 | `NotificationBus` 待实现 |
-| `api.js` 中业务方法分离 | loadKanbanData/loadDashboardStats 等应移至业务层 |
-| Agent 双文件协议适配 | `AgentTaskPoller` 需适配 job.json + brief.md 双文件写入 |
-| 业务任务层实现 | `business/agent/`（brief生成 + result解析 + handler 派发）待创建 |
-| 业务数据统一 | 现有业务数据（tasks/pipeline/publish-records）迁移到 `business` 库 |
+| 发布模块 | Publish 模块（Package/Platform/Schedule）待创建 |
 
 ---
 
