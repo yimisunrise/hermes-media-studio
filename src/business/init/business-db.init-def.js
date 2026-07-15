@@ -64,6 +64,62 @@ export const initDef = {
       shardType: 'none'
     });
 
+    onProgress('注册任务表（月度分片）...');
+    await schemaRegistry.createTable('business', {
+      id: 'tasks',
+      label: '任务',
+      fields: [
+        { id: 'id', type: 'uuid', isId: true },
+        { id: 'topicId', type: 'reference', label: '关联选题', ref: { database: 'business', table: 'topics' } },
+        { id: 'title', type: 'string', label: '任务标题', required: true },
+        { id: 'taskType', type: 'enum', label: '任务类型', enum: ['media', 'copywriting'] },
+        { id: 'status', type: 'enum', label: '状态', enum: ['pending', 'generating', 'review', 'approved', 'rejected'], defaultValue: 'pending' },
+        { id: 'prompt', type: 'text', label: '创作提示词' },
+        { id: 'mode', type: 'enum', label: '模式', enum: ['manual', 'agent'], defaultValue: 'manual' },
+        { id: 'resultSummary', type: 'text', label: '结果摘要' },
+        { id: 'createdAt', type: 'datetime', autoSet: 'created' },
+        { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
+      ],
+      shardType: 'monthly'
+    });
+
+    onProgress('注册素材表（月度分片）...');
+    await schemaRegistry.createTable('business', {
+      id: 'assets',
+      label: '素材',
+      fields: [
+        { id: 'id', type: 'uuid', isId: true },
+        { id: 'taskId', type: 'reference', label: '关联任务', ref: { database: 'business', table: 'tasks' } },
+        { id: 'type', type: 'enum', label: '素材类型', enum: ['image', 'video', 'audio'] },
+        { id: 'url', type: 'string', label: '访问 URL' },
+        { id: 'filePath', type: 'string', label: '文件路径' },
+        { id: 'thumbnail', type: 'string', label: '缩略图 URL' },
+        { id: 'metadata', type: 'json', label: '扩展元数据' },
+        { id: 'status', type: 'enum', label: '状态', enum: ['generating', 'completed', 'failed'], defaultValue: 'generating' },
+        { id: 'createdAt', type: 'datetime', autoSet: 'created' },
+        { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
+      ],
+      shardType: 'monthly'
+    });
+
+    onProgress('注册文稿表...');
+    await schemaRegistry.createTable('business', {
+      id: 'contents',
+      label: '文稿',
+      fields: [
+        { id: 'id', type: 'uuid', isId: true },
+        { id: 'taskId', type: 'reference', label: '关联任务', ref: { database: 'business', table: 'tasks' } },
+        { id: 'topicId', type: 'reference', label: '关联选题', ref: { database: 'business', table: 'topics' } },
+        { id: 'version', type: 'integer', label: '版本号', defaultValue: 1 },
+        { id: 'title', type: 'string', label: '文稿标题' },
+        { id: 'content', type: 'text', label: '文稿内容(Markdown)' },
+        { id: 'status', type: 'enum', label: '状态', enum: ['draft', 'finalized', 'archived'], defaultValue: 'draft' },
+        { id: 'createdAt', type: 'datetime', autoSet: 'created' },
+        { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
+      ],
+      shardType: 'none'
+    });
+
     onProgress('业务数据库就绪');
   }
 };
