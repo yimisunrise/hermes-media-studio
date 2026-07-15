@@ -37,6 +37,7 @@ export async function bootstrapFramework(containerEl) {
 
   const bootManager = new BootManager({ api });
   const schemaRegistry = new SchemaRegistry({ api, notificationBus: null });
+  api.setSchemaRegistry(schemaRegistry);
   const orchestrator = new InitOrchestrator({ api, schemaRegistry, bootManager });
 
   return { api, state, router, bootManager, schemaRegistry, orchestrator, panel, viewContainer };

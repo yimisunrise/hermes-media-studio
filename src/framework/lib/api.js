@@ -3,6 +3,8 @@
  * Uses Hermes WebUI's file API with session-based authentication.
  */
 
+import { DataRepository } from '../core/DataRepository.js';
+
 const ENDPOINT_MAP = {
   list: '/api/list',
   file: '/api/file',
@@ -20,6 +22,15 @@ class WorkspaceAPI {
     this._sessionId = null;
     this._workspacePath = null;
     this._usingStandaloneSession = false;
+    this._schemaRegistry = null;
+    this._themeRepo = null;
+    this._ideaRepo = null;
+    this._topicRepo = null;
+  }
+
+  /** Set SchemaRegistry reference after initialization (called by bootstrap). */
+  setSchemaRegistry(sr) {
+    this._schemaRegistry = sr;
   }
 
   /** Current session ID from WebUI global state.
@@ -812,6 +823,83 @@ class WorkspaceAPI {
     if (data.children) return data.children;
     if (data.files) return data.files;
     return [];
+  }
+
+  // ── Business: Planning ───────────────────────────────────────────
+
+  _getThemeRepo() {
+    if (!this._themeRepo) {
+      if (!this._schemaRegistry) throw new Error('SchemaRegistry not set. Call setSchemaRegistry() first.');
+      this._themeRepo = DataRepository.for(this, this._schemaRegistry, 'business', 'themes');
+    }
+    return this._themeRepo;
+  }
+
+  _getIdeaRepo() {
+    if (!this._ideaRepo) {
+      if (!this._schemaRegistry) throw new Error('SchemaRegistry not set.');
+      this._ideaRepo = DataRepository.for(this, this._schemaRegistry, 'business', 'ideas');
+    }
+    return this._ideaRepo;
+  }
+
+  _getTopicRepo() {
+    if (!this._topicRepo) {
+      if (!this._schemaRegistry) throw new Error('SchemaRegistry not set.');
+      this._topicRepo = DataRepository.for(this, this._schemaRegistry, 'business', 'topics');
+    }
+    return this._topicRepo;
+  }
+
+  async listThemes() {
+    const result = await this._getThemeRepo().find({ sort: '-createdAt' });
+    return result.records;
+  }
+
+  async createTheme(data) {
+    return this._getThemeRepo().create(data);
+  }
+
+  async updateTheme(id, data) {
+    return this._getThemeRepo().update(id, data);
+  }
+
+  async deleteTheme(id) {
+    return this._getThemeRepo().delete(id);
+  }
+
+  async listIdeas(filter) {
+    const result = await this._getIdeaRepo().find({ filter, sort: '-createdAt' });
+    return result.records;
+  }
+
+  async createIdea(data) {
+    return this._getIdeaRepo().create(data);
+  }
+
+  async updateIdea(id, data) {
+    return this._getIdeaRepo().update(id, data);
+  }
+
+  async deleteIdea(id) {
+    return this._getIdeaRepo().delete(id);
+  }
+
+  async listTopics(filter) {
+    const result = await this._getTopicRepo().find({ filter, sort: '-createdAt' });
+    return result.records;
+  }
+
+  async createTopic(data) {
+    return this._getTopicRepo().create(data);
+  }
+
+  async updateTopic(id, data) {
+    return this._getTopicRepo().update(id, data);
+  }
+
+  async deleteTopic(id) {
+    return this._getTopicRepo().delete(id);
   }
 }
 
