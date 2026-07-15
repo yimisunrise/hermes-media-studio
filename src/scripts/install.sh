@@ -11,7 +11,7 @@ WORKSPACE_ROOT="${HERMES_WORKSPACE:-./media-studio}"
 
 # 创建目录结构
 echo "创建 Workspace 目录结构..."
-mkdir -p "$WORKSPACE_ROOT"/{pipeline/{01-generating,02-pending-review,03-approved,04-scheduled,05-published},themes,platforms,workflows,archive,.trash,.media-studio}
+mkdir -p "$WORKSPACE_ROOT"/{themes,platforms,workflows}
 
 # 创建 .gitkeep 文件
 find "$WORKSPACE_ROOT" -type d -empty -exec touch {}/.gitkeep \;

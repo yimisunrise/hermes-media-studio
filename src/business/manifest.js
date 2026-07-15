@@ -15,33 +15,24 @@ export const MANIFEST = {
     { hash: 'kanban', label: '看板', iconKey: 'kanban', path: '/extensions/business/views/KanbanBoard.js', className: 'KanbanBoard', group: 'production' },
     { hash: 'review', label: '审核', iconKey: 'review', path: '/extensions/business/views/ReviewMode.js', className: 'ReviewMode', group: 'production' },
     { hash: 'tasks', label: '任务', iconKey: 'tasks', path: '/extensions/business/views/TasksView.js', className: 'TasksView', group: 'production' },
-    { hash: 'publish', label: '发布', iconKey: 'publish', path: '/extensions/business/views/PublishView.js', className: 'PublishView', group: 'publishing' },
-    { hash: 'archive', label: '素材库', iconKey: 'archive', path: '/extensions/business/views/MediaArchive.js', className: 'MediaArchive', group: 'resources' },
-    { hash: 'copywriting', label: '图文库', iconKey: 'copywriting', path: '/extensions/business/views/CopywritingView.js', className: 'CopywritingView', group: 'resources' },
-    { hash: 'calendar', label: '日历', iconKey: 'calendar', path: '/extensions/business/views/CalendarView.js', className: 'CalendarView', group: 'resources' },
+    { hash: 'assets', label: '素材', iconKey: 'assets', path: '/extensions/business/views/AssetGallery.js', className: 'AssetGallery', group: 'production' },
     { hash: 'ideas', label: '灵感', iconKey: 'ideas', path: '/extensions/business/views/IdeaBoard.js', className: 'IdeaBoard', group: 'planning' },
     { hash: 'topics', label: '选题', iconKey: 'topics', path: '/extensions/business/views/TopicBoard.js', className: 'TopicBoard', group: 'planning' },
     { hash: 'themes', label: '主题', iconKey: 'themes', path: '/extensions/business/views/ThemeStrategy.js', className: 'ThemeStrategy', group: 'planning' },
-    { hash: 'platforms', label: '平台配置', iconKey: 'platforms', path: '/extensions/business/views/PlatformConfig.js', className: 'PlatformConfig', group: 'operations' },
     { hash: 'database', label: '数据库', iconKey: 'database', path: '/extensions/business/views/DatabaseManager.js', className: 'DatabaseManager', group: 'system' },
   ],
 
   /** 菜单组结构：按组组织视图 */
   menuGroups: [
     { id: 'planning', label: '选题策划', iconKey: 'planning', items: ['ideas', 'topics', 'themes'] },
-    { id: 'production', label: '生产流程', iconKey: 'production', items: ['kanban', 'review', 'tasks'] },
-    { id: 'publishing', label: '发布管理', iconKey: 'publishing', items: ['publish'] },
-    { id: 'resources', label: '资源管理', iconKey: 'resources', items: ['archive', 'copywriting', 'calendar'] },
-    { id: 'operations', label: '运营配置', iconKey: 'operations', items: ['platforms'] },
+    { id: 'production', label: '生产流程', iconKey: 'production', items: ['kanban', 'review', 'tasks', 'assets'] },
     { id: 'system', label: '系统管理', iconKey: 'operations', items: ['database'] },
   ],
 
   /** 初始化模块定义 */
   initDefs: [
     { id: 'orchestrator-core', path: '/extensions/business/init/InitOrchestrator.init-def.js', label: '初始化框架核心' },
-    { id: 'workspace', path: '/extensions/business/init/workspace.init-def.js', label: '创建工作区目录' },
     { id: 'schema-registry', path: '/extensions/business/init/SchemaRegistry.init-def.js', label: '初始化系统数据库' },
     { id: 'business-db', path: '/extensions/business/init/business-db.init-def.js', label: '创建业务数据库' },
-    { id: 'configs', path: '/extensions/business/init/configs.init-def.js', label: '写入默认配置' },
   ],
 };

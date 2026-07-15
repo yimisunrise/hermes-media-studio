@@ -22,9 +22,7 @@ export class ViewManager {
           continue;
         }
         const sharedDeps = { api: this.api, state: this.state };
-        const instance = entry.hash === 'database'
-          ? new ViewClass({ ...sharedDeps, schemaRegistry: this.schemaRegistry })
-          : new ViewClass(sharedDeps);
+        const instance = new ViewClass({ ...sharedDeps, schemaRegistry: this.schemaRegistry });
 
         if (typeof instance.render !== 'function') {
           console.warn(`[ViewManager] View "${entry.hash}" has no render() method, skipping`);

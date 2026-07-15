@@ -1,15 +1,21 @@
 import { empty } from '../../framework/utils/dom.js';
+import { repo } from '../data/index.js';
 
 export class TopicBoard {
-  constructor({ api, state }) {
+  constructor({ api, state, schemaRegistry }) {
     this.api = api;
     this.state = state;
+    this._sr = schemaRegistry;
     this.topics = [];
     this.ideas = [];
     this.themes = [];
     this._filterStatus = '';
     this._filterTheme = '';
   }
+
+  _topicRepo() { return repo(this.api, this._sr, 'topics'); }
+  _ideaRepo() { return repo(this.api, this._sr, 'ideas'); }
+  _themeRepo() { return repo(this.api, this._sr, 'themes'); }
 
   async render(container) {
     empty(container);
@@ -124,13 +130,22 @@ export class TopicBoard {
   }
 
   async _loadTopics() {
-    try { this.topics = await this.api.listTopics(); } catch { this.topics = []; }
+    try {
+      const result = await this._topicRepo().find({ sort: '-createdAt' });
+      this.topics = result.records || [];
+    } catch { this.topics = []; }
   }
   async _loadThemes() {
-    try { this.themes = await this.api.listThemes(); } catch { this.themes = []; }
+    try {
+      const result = await this._themeRepo().find({ sort: '-createdAt' });
+      this.themes = result.records || [];
+    } catch { this.themes = []; }
   }
   async _loadIdeas() {
-    try { this.ideas = (await this.api.listIdeas()).filter(i => i.status !== 'archived'); } catch { this.ideas = []; }
+    try {
+      const result = await this._ideaRepo().find({ sort: '-createdAt' });
+      this.ideas = (result.records || []).filter(i => i.status !== 'archived');
+    } catch { this.ideas = []; }
   }
 
   _createFromIdea() {
@@ -200,16 +215,16 @@ export class TopicBoard {
       const title = _q('#t-title')?.value?.trim() || idea.title;
       if (!title) { _q('#t-title')?.focus(); return; }
       try {
-        await this.api.createTopic({
+        await this._topicRepo().create({
           title,
           ideaId: idea.id,
           themeId: _q('#t-theme')?.value || idea.themeId || '',
           contentType: _q('#t-type')?.value || 'graphic',
           dueDate: _q('#t-due')?.value?.trim() || null,
-          status: 'pending',
+          status: 'draft',
         });
         if (idea.status === 'active') {
-          await this.api.updateIdea(idea.id, { status: 'used' });
+          await this._ideaRepo().update(idea.id, { status: 'used' });
         }
         ov.remove();
         await this._loadTopics();
@@ -275,7 +290,7 @@ export class TopicBoard {
         status: _q('#e-status')?.value || 'pending',
       };
       try {
-        await this.api.updateTopic(t.id, d);
+        await this._topicRepo().update(t.id, d);
         ov.remove();
         await this._loadTopics();
         this.render(this._container);
@@ -296,7 +311,7 @@ export class TopicBoard {
     bn(btn('取消', null, () => ov.remove()), f);
     const db = ce('button', 'padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;', '确认删除');
     db.onclick = async () => {
-      try { await this.api.deleteTopic(t.id); ov.remove(); await this._loadTopics(); this.render(this._container); }
+      try { await this._topicRepo().delete(t.id); ov.remove(); await this._loadTopics(); this.render(this._container); }
       catch(e) { console.error('删除选题失败', e); }
     };
     bn(db, f);

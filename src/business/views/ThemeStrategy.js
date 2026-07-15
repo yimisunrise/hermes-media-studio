@@ -1,11 +1,17 @@
 import { createElement, empty } from '../../framework/utils/dom.js';
+import { repo } from '../data/index.js';
 
 export class ThemeStrategy {
-  constructor({ api, state }) {
+  constructor({ api, state, schemaRegistry }) {
     this.api = api;
     this.state = state;
+    this._sr = schemaRegistry;
     this.themes = [];
     this._editingTheme = null;
+  }
+
+  _themeRepo() {
+    return repo(this.api, this._sr, 'themes');
   }
 
   async render(container) {
@@ -49,7 +55,8 @@ export class ThemeStrategy {
 
   async _loadThemes() {
     try {
-      this.themes = await this.api.listThemes();
+      const result = await this._themeRepo().find({ sort: '-createdAt' });
+      this.themes = result.records || [];
     } catch {
       this.themes = [];
     }
@@ -256,9 +263,9 @@ export class ThemeStrategy {
   async _saveTheme(data) {
     try {
       if (this._editingTheme) {
-        await this.api.updateTheme(this._editingTheme.id, data);
+        await this._themeRepo().update(this._editingTheme.id, data);
       } else {
-        await this.api.createTheme(data);
+        await this._themeRepo().create(data);
       }
       await this.render(this._container);
     } catch (e) {
@@ -296,7 +303,7 @@ export class ThemeStrategy {
     delBtn.textContent = '确认删除';
     delBtn.addEventListener('click', async () => {
       try {
-        await this.api.deleteTheme(theme.id);
+        await this._themeRepo().delete(theme.id);
         overlay.remove();
         await this.render(this._container);
       } catch (e) {

@@ -660,38 +660,15 @@
   border-top: 1px solid var(--ms-border);
 }
 
-/* === Dashboard (deprecated) === */
-.ms-dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.ms-dashboard-overview {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-.ms-dashboard-section {
-  background: var(--ms-bg-secondary);
-  border-radius: var(--ms-radius);
-  padding: 20px;
-}
-
-.ms-dashboard-section h3 { margin: 0 0 16px; font-size: 16px; }
-
 /* === Responsive === */
 @media (max-width: 1200px) {
   .ms-kanban { grid-template-columns: repeat(2, 1fr); }
   .ms-detail-layout { grid-template-columns: 1fr; }
-  .ms-dashboard-overview { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
   .ms-panel { width: 180px; }
   .ms-kanban { grid-template-columns: 1fr; }
-  .ms-dashboard-overview { grid-template-columns: 1fr 1fr; }
   .ms-review-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
 

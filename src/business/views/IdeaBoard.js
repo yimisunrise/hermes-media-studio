@@ -1,9 +1,11 @@
 import { empty } from '../../framework/utils/dom.js';
+import { repo } from '../data/index.js';
 
 export class IdeaBoard {
-  constructor({ api, state }) {
+  constructor({ api, state, schemaRegistry }) {
     this.api = api;
     this.state = state;
+    this._sr = schemaRegistry;
     this.ideas = [];
     this.themes = [];
     this._filterStatus = '';
@@ -11,6 +13,9 @@ export class IdeaBoard {
     this._searchText = '';
     this._expandId = null;
   }
+
+  _ideaRepo() { return repo(this.api, this._sr, 'ideas'); }
+  _themeRepo() { return repo(this.api, this._sr, 'themes'); }
 
   async render(container) {
     empty(container);
@@ -181,16 +186,22 @@ export class IdeaBoard {
   }
 
   async _loadIdeas() {
-    try { this.ideas = await this.api.listIdeas(); } catch { this.ideas = []; }
+    try {
+      const result = await this._ideaRepo().find({ sort: '-createdAt' });
+      this.ideas = result.records || [];
+    } catch { this.ideas = []; }
   }
 
   async _loadThemes() {
-    try { this.themes = await this.api.listThemes(); } catch { this.themes = []; }
+    try {
+      const result = await this._themeRepo().find({ sort: '-createdAt' });
+      this.themes = result.records || [];
+    } catch { this.themes = []; }
   }
 
   async _create(title) {
     try {
-      await this.api.createIdea({ title, status: 'active' });
+      await this._ideaRepo().create({ title, status: 'active' });
       await this._loadIdeas();
       this._renderList();
     } catch (e) { console.error('创建灵感失败', e); }
@@ -230,8 +241,8 @@ export class IdeaBoard {
       };
       if (!d.title) { const inp = _q('#idea-title'); inp.focus(); inp.style.borderColor='var(--ms-danger)'; return; }
       try {
-        if (isEdit) await this.api.updateIdea(idea.id, d);
-        else await this.api.createIdea(d);
+        if (isEdit)       await this._ideaRepo().update(idea.id, d);
+        else await this._ideaRepo().create(d);
         ov.remove();
         await this._loadIdeas();
         this._renderList();
@@ -280,16 +291,16 @@ export class IdeaBoard {
       const title = _q('#tp-title')?.value?.trim() || name;
       if (!title) { _q('#tp-title')?.focus(); return; }
       try {
-        await this.api.createTopic({
+        await repo(this.api, this._sr, 'topics').create({
           title,
           ideaId: idea.id,
           themeId: _q('#tp-theme')?.value || idea.themeId || '',
           contentType: _q('#tp-type')?.value || 'graphic',
           dueDate: _q('#tp-due')?.value?.trim() || null,
-          status: 'pending',
+          status: 'draft',
         });
         idea.status = 'used';
-        await this.api.updateIdea(idea.id, idea);
+        await this._ideaRepo().update(idea.id, { status: 'used' });
         ov.remove();
         await this._loadIdeas();
         this._renderList();
@@ -303,8 +314,7 @@ export class IdeaBoard {
 
   async _archive(idea) {
     try {
-      idea.status = 'archived';
-      await this.api.updateIdea(idea.id, { status: 'archived' });
+      await this._ideaRepo().update(idea.id, { status: 'archived' });
       await this._loadIdeas();
       this._renderList();
     } catch(e) { console.error('归档失败', e); }
@@ -320,7 +330,7 @@ export class IdeaBoard {
     bn(btn('取消', null, () => ov.remove()), f);
     const db = ce('button', 'padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;', '确认删除');
     db.onclick = async () => {
-      try { await this.api.deleteIdea(idea.id); ov.remove(); await this._loadIdeas(); this._renderList(); }
+      try { await this._ideaRepo().delete(idea.id); ov.remove(); await this._loadIdeas(); this._renderList(); }
       catch(e) { console.error('删除失败', e); }
     };
     bn(db, f);
