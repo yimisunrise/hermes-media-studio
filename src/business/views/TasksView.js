@@ -2,20 +2,13 @@ import { empty } from '../../framework/utils/dom.js';
 import { formatDateTime } from '../../framework/utils/format.js';
 import { taskRepo, repo } from '../data/index.js';
 import { TaskDetail } from './TaskDetail.js';
+import { AgentHandler } from '../agent/index.js';
 
 const TYPE_LABELS = { media: '素材', copywriting: '文案' };
 const MODE_LABELS = { manual: '手工', agent: 'Agent' };
 const STATUS_LABELS = {
   pending: '待处理', generating: '生成中', review: '待审核',
-  approved: '已通过', rejected: '已拒绝'
-};
-
-const NEXT_TRANSITIONS = {
-  pending: ['generating'],
-  generating: ['review'],
-  review: ['approved', 'rejected'],
-  approved: [],
-  rejected: []
+  approved: '已完成', closed: '已关闭', archived: '已归档'
 };
 
 export class TasksView {
@@ -26,78 +19,41 @@ export class TasksView {
     this._tasks = [];
     this._filterType = 'all';
     this._filterStatus = 'all';
+    this._showArchived = false;
+
+    this._agentHandler = new AgentHandler({ api, schemaRegistry });
+    this._agentHandler.startSync(() => this._loadAndRender());
   }
 
-  destroy() {}
+  destroy() {
+    this._agentHandler.stopSync();
+  }
 
   async render(container) {
     empty(container);
-    this._injectStyles();
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'ms-tasks-view';
-
-    wrapper.appendChild(this._renderHeader());
-    wrapper.appendChild(this._renderFilterBar());
+    container.appendChild(this._renderHeader());
+    container.appendChild(this._renderFilterBar());
 
     const listArea = document.createElement('div');
-    listArea.className = 'ms-tasks-list';
+    listArea.className = 'ms-panel-body';
     listArea.id = 'media-studio-tasks-list';
-    wrapper.appendChild(listArea);
+    container.appendChild(listArea);
     this._listEl = listArea;
 
-    container.appendChild(wrapper);
     await this._loadAndRender();
-  }
-
-  _injectStyles() {
-    const styleId = 'media-studio-tasks-view-styles';
-    if (document.getElementById(styleId)) return;
-
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      .ms-tasks-view { max-width: 960px; margin: 0 auto; }
-      .ms-tasks-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-      .ms-tasks-header h2 { margin: 0; font-size: 20px; font-weight: 600; color: var(--ms-text-primary, #e0e0e0); }
-      .ms-tasks-filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
-      .ms-tasks-filter-bar .ms-select { min-width: 120px; }
-      .ms-tasks-list { display: flex; flex-direction: column; gap: 12px; }
-      .ms-task-card { background: var(--ms-bg-card, #0f3460); border: 1px solid var(--ms-border, #2a2a4a); border-radius: var(--ms-radius, 8px); padding: 16px; transition: border-color 0.2s ease; }
-      .ms-task-card:hover { border-color: var(--ms-accent, #e94560); }
-      .ms-task-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
-      .ms-task-type-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; color: #fff; }
-      .ms-task-mode-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; background: var(--ms-bg-primary, #1a1a2e); color: var(--ms-text-secondary, #a0a0a0); border: 1px solid var(--ms-border, #2a2a4a); }
-      .ms-task-status-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 500; background: var(--ms-bg-primary, #1a1a2e); color: var(--ms-text-primary, #e0e0e0); border: 1px solid var(--ms-border, #2a2a4a); margin-left: auto; }
-      .ms-task-brief { font-size: 13px; color: var(--ms-text-secondary, #a0a0a0); line-height: 1.5; margin-bottom: 10px; word-break: break-word; }
-      .ms-task-time { font-size: 11px; color: var(--ms-text-secondary, #a0a0a0); margin-bottom: 10px; }
-      .ms-task-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-      .ms-task-action-btn { padding: 3px 10px; font-size: 11px; border: 1px solid var(--ms-border, #2a2a4a); border-radius: var(--ms-radius-sm, 4px); background: var(--ms-bg-primary, #1a1a2e); color: var(--ms-text-primary, #e0e0e0); cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; font-family: inherit; }
-      .ms-task-action-btn:hover { border-color: var(--ms-accent, #e94560); color: var(--ms-accent, #e94560); }
-      .ms-task-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-      .ms-task-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-      .ms-task-modal { background: var(--ms-bg-secondary, #16213e); border: 1px solid var(--ms-border, #2a2a4a); border-radius: var(--ms-radius, 8px); width: 480px; max-width: 90vw; max-height: 80vh; overflow-y: auto; padding: 24px; }
-      .ms-task-modal h3 { margin: 0 0 20px; font-size: 18px; color: var(--ms-text-primary, #e0e0e0); }
-      .ms-task-modal .ms-form-row { margin-bottom: 16px; }
-      .ms-task-modal .ms-form-label { display: block; margin-bottom: 6px; }
-      .ms-task-modal .ms-form-textarea { min-height: 120px; }
-      .ms-task-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
-      .ms-tasks-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px; color: var(--ms-text-secondary, #a0a0a0); gap: 8px; }
-      .ms-tasks-empty-icon { font-size: 40px; opacity: 0.3; }
-    `;
-    document.head.appendChild(style);
   }
 
   _ts() { return taskRepo(this.api, this._sr); }
 
   _renderHeader() {
     const header = document.createElement('div');
-    header.className = 'ms-tasks-header';
-    const title = document.createElement('h2');
+    header.className = 'ms-panel-header';
+    const title = document.createElement('span');
+    title.style.cssText = 'font-weight:600;font-size:15px';
     title.textContent = '任务管理';
     header.appendChild(title);
     const createBtn = document.createElement('button');
-    createBtn.className = 'ms-btn ms-btn-primary';
+    createBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
     createBtn.textContent = '新建任务';
     createBtn.addEventListener('click', () => this._showCreateForm());
     header.appendChild(createBtn);
@@ -106,11 +62,11 @@ export class TasksView {
 
   _renderFilterBar() {
     const bar = document.createElement('div');
-    bar.className = 'ms-tasks-filter-bar';
+    bar.className = 'ms-panel-filterbar';
 
     const typeSelect = document.createElement('select');
     typeSelect.className = 'ms-select';
-    for (const [v, label] of [['all', '全部类型'], ['media', '素材任务'], ['copywriting', '文案任务']]) {
+    for (const [v, label] of [['all', '全类型'], ['media', '素材'], ['copywriting', '文案']]) {
       const el = document.createElement('option');
       el.value = v; el.textContent = label; typeSelect.appendChild(el);
     }
@@ -120,13 +76,27 @@ export class TasksView {
 
     const statusSelect = document.createElement('select');
     statusSelect.className = 'ms-select';
-    for (const [v, label] of [['all', '全部状态'], ...Object.entries(STATUS_LABELS)]) {
+    for (const [v, label] of [['all', '全状态'], ...Object.entries(STATUS_LABELS)]) {
       const el = document.createElement('option');
       el.value = v; el.textContent = label; statusSelect.appendChild(el);
     }
     statusSelect.value = this._filterStatus;
     statusSelect.addEventListener('change', () => { this._filterStatus = statusSelect.value; this._renderTaskList(); });
     bar.appendChild(statusSelect);
+
+    const archiveLabel = document.createElement('label');
+    archiveLabel.className = 'ms-tasks-archive-toggle';
+    archiveLabel.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ms-text-secondary,#a0a0a0);cursor:pointer;user-select:none;flex-shrink:0;white-space:nowrap';
+    const archiveCheck = document.createElement('input');
+    archiveCheck.type = 'checkbox';
+    archiveCheck.checked = this._showArchived;
+    archiveCheck.addEventListener('change', () => {
+      this._showArchived = archiveCheck.checked;
+      this._renderTaskList();
+    });
+    archiveLabel.appendChild(archiveCheck);
+    archiveLabel.appendChild(document.createTextNode('显示已归档'));
+    bar.appendChild(archiveLabel);
 
     return bar;
   }
@@ -146,6 +116,7 @@ export class TasksView {
     let filtered = [...this._tasks];
     if (this._filterType !== 'all') filtered = filtered.filter(t => t.taskType === this._filterType);
     if (this._filterStatus !== 'all') filtered = filtered.filter(t => t.status === this._filterStatus);
+    if (!this._showArchived) filtered = filtered.filter(t => t.status !== 'archived');
 
     if (filtered.length === 0) {
       this._listEl.innerHTML = '<div class="ms-tasks-empty"><div class="ms-tasks-empty-icon">-</div><div>暂无任务</div></div>';
@@ -159,7 +130,7 @@ export class TasksView {
 
   _renderTaskCard(task) {
     const card = document.createElement('div');
-    card.className = 'ms-task-card';
+    card.className = 'ms-item-card';
     card.dataset.id = task.id;
 
     const header = document.createElement('div');
@@ -197,20 +168,6 @@ export class TasksView {
     timeEl.className = 'ms-task-time';
     timeEl.textContent = '创建时间: ' + formatDateTime(task.createdAt);
     card.appendChild(timeEl);
-
-    const nextStates = NEXT_TRANSITIONS[task.status] || [];
-    if (nextStates.length > 0) {
-      const actions = document.createElement('div');
-      actions.className = 'ms-task-actions';
-      for (const nextState of nextStates) {
-        const btn = document.createElement('button');
-        btn.className = 'ms-task-action-btn';
-        btn.textContent = STATUS_LABELS[nextState] || nextState;
-        btn.addEventListener('click', () => this._transitionTask(task.id, nextState));
-        actions.appendChild(btn);
-      }
-      card.appendChild(actions);
-    }
 
     return card;
   }
@@ -323,7 +280,7 @@ export class TasksView {
           submitBtn.textContent = '创建';
           return;
         }
-        await this._ts().create({
+        const record = await this._ts().create({
           topicId: topicId,
           taskType: typeSelect.value,
           mode: modeSelect.value,
@@ -332,6 +289,11 @@ export class TasksView {
           status: 'pending'
         });
         overlay.remove();
+        if (record.mode === 'agent') {
+          this._agentHandler.submitTask(record).catch(err => {
+            console.error('[TasksView] Agent 任务提交失败:', err);
+          });
+        }
         await this._loadAndRender();
       } catch (e) {
         submitBtn.disabled = false;
@@ -348,16 +310,6 @@ export class TasksView {
     promptTextarea.focus();
   }
 
-  async _transitionTask(taskId, newStatus) {
-    const note = prompt('请输入备注（可选）:', '');
-    if (note === null) return;
-    try {
-      await this._ts().update(taskId, { status: newStatus });
-      await this._loadAndRender();
-    } catch (e) {
-      alert('状态变更失败: ' + e.message);
-    }
-  }
 }
 
 export default TasksView;
