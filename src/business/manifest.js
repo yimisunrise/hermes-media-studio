@@ -8,12 +8,11 @@
 export const MANIFEST = {
   name: 'media-studio',
   version: '1.0.0',
-  label: 'Media Studio — 自媒体内容生产流水线',
+  label: 'Media Studio — 自媒体运营助手',
 
   /** 视图注册表：hash → 视图模块映射 */
   views: [
     { hash: 'kanban', label: '看板', iconKey: 'kanban', path: '/extensions/business/views/KanbanBoard.js', className: 'KanbanBoard', group: 'production' },
-    { hash: 'review', label: '审核', iconKey: 'review', path: '/extensions/business/views/ReviewMode.js', className: 'ReviewMode', group: 'production' },
     { hash: 'tasks', label: '任务', iconKey: 'tasks', path: '/extensions/business/views/TasksView.js', className: 'TasksView', group: 'production' },
     { hash: 'assets', label: '素材', iconKey: 'assets', path: '/extensions/business/views/AssetGallery.js', className: 'AssetGallery', group: 'production' },
     { hash: 'ideas', label: '灵感', iconKey: 'ideas', path: '/extensions/business/views/IdeaBoard.js', className: 'IdeaBoard', group: 'planning' },
@@ -25,7 +24,7 @@ export const MANIFEST = {
   /** 菜单组结构：按组组织视图 */
   menuGroups: [
     { id: 'planning', label: '选题策划', iconKey: 'planning', items: ['ideas', 'topics', 'themes'] },
-    { id: 'production', label: '生产流程', iconKey: 'production', items: ['kanban', 'review', 'tasks', 'assets'] },
+    { id: 'production', label: '生产流程', iconKey: 'production', items: ['kanban', 'tasks', 'assets'] },
     { id: 'system', label: '系统管理', iconKey: 'operations', items: ['database'] },
   ],
 

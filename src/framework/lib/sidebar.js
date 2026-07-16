@@ -61,7 +61,7 @@ class SidebarManager {
     const btn = document.createElement('button');
     btn.className = 'rail-btn ms-rail-btn';
     btn.dataset.panel = 'media-studio';
-    btn.title = 'Media Studio \u2014 \u81ea\u5a92\u4f53\u5185\u5bb9\u751f\u4ea7\u6d41\u6c34\u7ebf';
+    btn.title = 'Media Studio \u2014 \u81ea\u5a92\u4f53\u8fd0\u8425\u52a9\u624b';
     btn.innerHTML = this._logoSvg.replace('<svg', '<svg width="20" height="20"');
     btn.addEventListener('click', this._onRailBtnClick);
 
