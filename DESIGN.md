@@ -548,19 +548,19 @@ Package(1)─→ Analytics(N)  一个发布包有多条数据记录
 ```
 framework/core/AgentTaskPoller.js         business/agent/
                                       ┌──────────────────────────────────┐
-  ┌────────────────────────────┐       │                                  │
-  │  传输层（框架能力）           │       │  业务任务层（业务逻辑）            │
-  │                            │       │                                  │
-  │  .agent/tasks/ → job.json  │       │  brief.md 内容生成               │
-  │  .agent/processing/        │       │  ├─ comfyui-generate             │
-  │  .agent/results/ → result  │       │  ├─ ai-copywrite                 │
-  │                            │       │  ├─ ai-compose                   │
-  │  scan() / pickup()         │       │  ├─ publish                      │
-  │  deliver() / collect()     │──────▶│  └─ collect-analytics            │
-  │                            │       │                                  │
-  │  job.json 读写             │       │  result.md 解析 + 按类型派发      │
-  │  队列管理（mv 打标/清理）    │       │  ├─ 注册 handler: type → fn      │
-  │                            │       │  ├─ 更新 Task 状态               │
+  ┌────────────────────────────────┐   │                                  │
+  │  传输层（框架能力）               │   │  业务任务层（业务逻辑）            │
+  │                                │   │                                  │
+  │  .agent-tasks/index.json       │   │  brief.md 内容生成               │
+  │  .agent-tasks/<uuid>/ → job    │   │  ├─ comfyui-generate             │
+  │  .agent-tasks/<uuid>/ → result │   │  ├─ ai-copywrite                 │
+  │                                │   │  ├─ ai-compose                   │
+  │  readIndex() / updateTask()    │   │  ├─ publish                      │
+  │  createTask() / writeResult()  │──▶│  └─ collect-analytics            │
+  │                                │   │                                  │
+  │  job.json 读写                 │   │  result.md 解析 + 按类型派发      │
+  │  队列管理（index.json 状态管理） │   │  ├─ 注册 handler: type → fn      │
+  │                                │   │  ├─ 更新 Task 状态               │
   │  不解析 brief.md           │       │  ├─ 创建 Asset/Script 记录        │
   │  不解析 result.md 内容      │       │  └─ 触发 UI 刷新                 │
   └────────────────────────────┘       │                                  │
@@ -579,17 +579,15 @@ framework/core/AgentTaskPoller.js         business/agent/
 #### 4.2.1 目录结构
 
 ```
-.agent/tasks/<uuid>/
-├── job.json              ← 薄元数据（扩展快速扫描）
-├── brief.md              ← 完整任务简报（Agent 读取执行）
-└── files/                ← 参考附件（可选）
-    ├── workflow.json
-    └── reference.png
-
-.agent/processing/<uuid>/ ← Agent 拾取后 mv 至此
-
-.agent/results/<uuid>/
-└── result.md             ← YAML frontmatter + Markdown 正文
+.agent-tasks/
+├── index.json             ← 集中状态管理
+└── <uuid>/
+    ├── job.json           ← 薄元数据（扩展快速扫描）
+    ├── brief.md           ← 完整任务简报（Agent 读取执行）
+    ├── files/             ← 参考附件（可选）
+    │   ├── workflow.json
+    │   └── reference.png
+    └── result.md          ← Agent 执行结果（YAML frontmatter + Markdown）
 ```
 
 #### 4.2.2 job.json（机器索引）
@@ -704,24 +702,26 @@ function parseFrontmatter(md) {
 1. 业务层创建 Task（mode=agent）
    业务层组装 brief.md
    传输层写入 job.json + brief.md
-   到 .agent/tasks/<uuid>/
+   更新 index.json（status: pending）
+   到 .agent-tasks/<uuid>/
                                       ↓
-                                 2. Agent 轮询 scan
-                                    → 发现 tasks/（读 job.json）
+                                 2. Agent 轮询 readIndex()
+                                    → 发现 pending 任务（读 index.json）
                                       ↓
-                                 3. mv → processing/（防重复拾取）
+                                 3. Agent 设置 processing 锁
+                                    → updateTaskStatus(uuid, 'generating')
                                       ↓
                                  4. Agent 读取 brief.md 执行任务
                                     ├ 调用 ComfyUI / LLM API
                                     └ 保存产出文件
                                       ↓
-                                 5. Agent 写入 result.md
-                                    到 .agent/results/<uuid>/
+                                 5. Agent 写入 result.md + 释放锁
+                                    到 .agent-tasks/<uuid>/result.md
+                                    → updateTaskStatus(uuid, 'done')
    ↑
-6. 传输层 collect()
-   → 采集 results/
-   → 返回 result.md 文本
-   → 清理 results/<uuid>/
+6. AgentStatusSync 轮询 readIndex()
+   → 发现 status === 'done'
+   → 调用 poller.readResult(uuid) 读取文本
    ↓
 7. 业务层按 type 派发 handler
    → 解析 result.md frontmatter
@@ -737,7 +737,7 @@ function parseFrontmatter(md) {
 用户在看板点击「AI 生成素材」
   │
   ├─ 1. 业务层创建 Task（mode=agent, status=generating）
-  ├─ 2. 业务层组装 brief.md + 传输层写入 .agent/tasks/<uuid>/
+  ├─ 2. 业务层组装 brief.md + 传输层写入 .agent-tasks/<uuid>/
   │
   ├─ 3. HermesAgent 拾取 → 调用 ComfyUI → 生成图片
   │

@@ -44,7 +44,7 @@
     │                         ├─ .database/               ← Schema + 数据注册
     │                         │   ├─ system/              ← 框架库（库/表元数据）
     │                         │   └─ business/            ← 业务库（6 张业务表）
-    │                         └─ .agent/                  ← Agent 任务队列
+    │                         └─ .agent-tasks/            ← Agent 任务队列
     │
     └─ Hermes Agent ──→ 文件系统通信（job.json + brief.md）
 ```
@@ -117,7 +117,7 @@ export HERMES_WORKSPACE=/path/to/hermes-media-studio/workspace
 
 ```bash
 # 创建必要的目录结构
-mkdir -p /path/to/workspace/{.system/init,.database/system,.agent/{tasks,processing,results},assets,configs/{themes,platforms}}
+mkdir -p /path/to/workspace/{.system/init,.database/system,.agent-tasks,assets,configs/{themes,platforms}}
 ```
 
 或使用安装脚本：
@@ -179,13 +179,12 @@ workspace/
 │       ├── assets/                 # 素材文件（月分片）
 │       └── contents/               # 文稿（版本化管理）
 │
-├── .agent/                         # Agent 任务通信协议
-│   ├── tasks/<uuid>/               # 待处理任务
-│   │   ├── job.json                # 机器索引
-│   │   ├── brief.md                # 任务简报（LLM 可读）
-│   │   └── files/                  # 参考附件
-│   ├── processing/<uuid>/          # 正在处理（防重复拾取）
-│   └── results/<uuid>/             # 执行结果
+├── .agent-tasks/                   # Agent 任务通信协议
+│   ├── index.json                  # 集中状态管理（version/processing/tasks map）
+│   └── <uuid>/
+│       ├── job.json                # 机器索引
+│       ├── brief.md                # 任务简报（LLM 可读）
+│       ├── files/                  # 参考附件
 │       └── result.md               # YAML frontmatter + Markdown
 │
 ├── assets/                         # 素材文件（按 YYYY-MM/ 分片）
@@ -332,7 +331,7 @@ src/
 - 通用 CRUD → `DataRepository`（自动 ID 生成、时间戳、跨分片查询）
 - 分片存储 → 月度分片透明处理
 
-**Agent 通信协议**：通过 `.agent/` 目录与 Hermes Agent 通信，采用双文件设计：
+**Agent 通信协议**：通过 `.agent-tasks/` 目录与 Hermes Agent 通信，采用 index.json 集中状态管理 + 双文件设计：
 - `job.json`（机器索引，供扩展快速扫描）
 - `brief.md`（LLM/人类可读的任务简报）
 
