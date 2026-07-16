@@ -162,10 +162,10 @@ export class AssetGallery {
     const uuid = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
     const now = new Date();
     const monthDir = String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    const relPath = 'workspace/assets/' + monthDir + '/' + uuid + '-' + file.name;
+    const relPath = 'assets/' + monthDir + '/' + uuid + '-' + file.name;
 
     try {
-      await this.api.mkdir('workspace/assets/' + monthDir);
+      await this.api.mkdir('assets/' + monthDir);
 
       const reader = new FileReader();
       const dataUrl = await new Promise((resolve, reject) => {
@@ -174,7 +174,7 @@ export class AssetGallery {
         reader.readAsDataURL(file);
       });
 
-      await this.api.writeFile(relPath, dataUrl);
+      await this.api.write(relPath, dataUrl);
 
       await this._ar().create({
         taskId: '',

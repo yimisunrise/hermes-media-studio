@@ -269,17 +269,17 @@ export class TaskDetail {
     const uuid = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
     const now = new Date();
     const monthDir = String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    const relPath = 'workspace/assets/' + monthDir + '/' + uuid + '-' + file.name;
+    const relPath = 'assets/' + monthDir + '/' + uuid + '-' + file.name;
 
     try {
-      await api.mkdir('workspace/assets/' + monthDir);
+      await api.mkdir('assets/' + monthDir);
       const reader = new FileReader();
       const dataUrl = await new Promise((resolve, reject) => {
         reader.onload = () => resolve(reader.result);
         reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(file);
       });
-      await api.writeFile(relPath, dataUrl);
+      await api.write(relPath, dataUrl);
       const ar = assetRepo(api, sr);
       await ar.create({
         taskId: taskId,
