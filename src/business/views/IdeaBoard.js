@@ -23,7 +23,8 @@ export class IdeaBoard {
 
     this._container = container;
 
-    const bar = ce('div', 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--ms-border);');
+    const bar = ce('div', '');
+    bar.className = 'ms-panel-header';
     bn(ce('span', '', '灵感', { fontWeight: 600, fontSize: '15px' }), bar);
     const addBtn = btn('记录灵感', 'primary', () => this._quickAdd());
     bn(addBtn, bar);
@@ -50,13 +51,15 @@ export class IdeaBoard {
 
     this._renderFilters(container);
 
-    this._listWrap = ce('div', 'padding:12px 16px;overflow-y:auto;flex:1;');
+    this._listWrap = ce('div', '');
+    this._listWrap.className = 'ms-panel-body';
     bn(this._listWrap, container);
     this._renderList();
   }
 
   _renderFilters(container) {
-    const f = ce('div', 'display:flex;gap:8px;padding:6px 16px;border-bottom:1px solid var(--ms-border);flex-wrap:wrap;align-items:center;');
+    const f = ce('div', '');
+    f.className = 'ms-panel-filterbar';
 
     const statuses = [['', '全部状态'], ['active', '活跃'], ['used', '已用'], ['archived', '归档']];
     for (const [v, label] of statuses) {
@@ -118,9 +121,8 @@ export class IdeaBoard {
   _renderItem(idea) {
     const isExpanded = this._expandId === idea.id;
 
-    const el = ce('div', `background:var(--ms-bg-card);border-radius:var(--ms-radius);padding:12px 14px;border:1px solid var(--ms-border);cursor:pointer;transition:var(--ms-transition);margin-bottom:8px;`);
-    el.onmouseenter = () => { if (!isExpanded) el.style.borderColor = 'var(--ms-accent)'; };
-    el.onmouseleave = () => { if (!isExpanded) el.style.borderColor = 'var(--ms-border)'; };
+    const el = ce('div', '');
+    el.className = 'ms-item-card';
 
     const top = ce('div', 'display:flex;align-items:flex-start;gap:8px;');
 

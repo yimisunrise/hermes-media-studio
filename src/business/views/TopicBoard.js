@@ -22,7 +22,8 @@ export class TopicBoard {
     await Promise.all([this._loadTopics(), this._loadThemes(), this._loadIdeas()]);
     this._container = container;
 
-    const bar = ce('div', 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--ms-border);');
+    const bar = ce('div', '');
+    bar.className = 'ms-panel-header';
     bn(ce('span', '', '选题面板', { fontWeight: 600, fontSize: '15px' }), bar);
     const addBtn = btn('从灵感创建', 'primary', () => this._createFromIdea());
     bn(addBtn, bar);
@@ -30,7 +31,8 @@ export class TopicBoard {
 
     this._renderFilters(container);
 
-    const wrap = ce('div', 'padding:12px 16px;overflow-y:auto;flex:1;');
+    const wrap = ce('div', '');
+    wrap.className = 'ms-panel-body';
     bn(wrap, container);
 
     let items = this.topics;
@@ -46,7 +48,8 @@ export class TopicBoard {
   }
 
   _renderFilters(container) {
-    const f = ce('div', 'display:flex;gap:8px;padding:6px 16px;border-bottom:1px solid var(--ms-border);flex-wrap:wrap;align-items:center;');
+    const f = ce('div', '');
+    f.className = 'ms-panel-filterbar';
 
     const statuses = [['', '全部状态'], ['pending', '待处理'], ['in_progress', '进行中'], ['completed', '已完成'], ['cancelled', '已取消']];
     for (const [v, label] of statuses) {
@@ -81,9 +84,8 @@ export class TopicBoard {
     const stLabels = { pending: '待处理', in_progress: '进行中', completed: '已完成', cancelled: '已取消' };
     const stColors = { pending: 'var(--ms-accent)', in_progress: 'var(--ms-info)', completed: 'var(--ms-success)', cancelled: 'var(--ms-text-secondary)' };
 
-    const el = ce('div', 'background:var(--ms-bg-card);border-radius:var(--ms-radius);padding:14px;border:1px solid var(--ms-border);cursor:pointer;transition:var(--ms-transition);margin-bottom:8px;');
-    el.onmouseenter = () => el.style.borderColor = 'var(--ms-accent)';
-    el.onmouseleave = () => el.style.borderColor = 'var(--ms-border)';
+    const el = ce('div', '');
+    el.className = 'ms-item-card';
 
     const top = ce('div', 'display:flex;align-items:flex-start;gap:8px;');
 
@@ -115,10 +117,8 @@ export class TopicBoard {
     bn(info, top);
     bn(top, el);
 
-    const acts = ce('div', 'position:absolute;top:8px;right:8px;display:none;gap:4px;');
-    el.style.position = 'relative';
-    el.onmouseenter = () => { el.style.borderColor = 'var(--ms-accent)'; acts.style.display = 'flex'; };
-    el.onmouseleave = () => { el.style.borderColor = 'var(--ms-border)'; acts.style.display = 'none'; };
+    const acts = ce('div', '');
+    acts.className = 'ms-item-card-actions';
     bn(btn('编辑', null, (e) => { e.stopPropagation(); this._editTopic(t); }), acts);
     const db = btn('✕', null, (e) => { e.stopPropagation(); this._deleteTopic(t); });
     db.style.color = 'var(--ms-danger)'; db.title = '删除';

@@ -2,6 +2,168 @@
    Hermes Media Studio — Business View Styles
    ============================================================ */
 
+/* === Panel Layout System === */
+.ms-panel-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.ms-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-panel-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ms-text-primary);
+}
+
+.ms-panel-filterbar {
+  display: flex;
+  gap: 12px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--ms-border);
+  align-items: center;
+}
+
+.ms-panel-filterbar .ms-select {
+  min-width: 120px;
+}
+
+.ms-panel-body {
+  padding: 12px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ms-item-card {
+  background: var(--ms-bg-card);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: var(--ms-transition);
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.ms-item-card:hover {
+  border-color: var(--ms-accent);
+}
+
+/* -- Task card sub-elements (used in TasksView list) -- */
+.ms-task-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.ms-task-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--ms-bg-primary);
+  color: var(--ms-text-primary);
+  border: 1px solid var(--ms-border);
+  margin-left: auto;
+}
+
+.ms-task-brief {
+  font-size: 13px;
+  color: var(--ms-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.ms-task-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-task-modal {
+  background: var(--ms-bg-secondary);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+  width: 480px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.ms-task-modal h3 {
+  margin: 0 0 20px;
+  font-size: 18px;
+  color: var(--ms-text-primary);
+}
+
+.ms-task-modal .ms-form-row {
+  margin-bottom: 16px;
+}
+
+.ms-task-modal .ms-form-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.ms-task-modal .ms-form-textarea {
+  min-height: 120px;
+}
+
+.ms-task-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.ms-tasks-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  color: var(--ms-text-secondary);
+  gap: 8px;
+}
+
+.ms-tasks-empty-icon {
+  font-size: 40px;
+  opacity: 0.3;
+}
+
+/* -- TopicBoard card action buttons -- */
+.ms-item-card-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: none;
+  gap: 4px;
+}
+
+.ms-item-card:hover .ms-item-card-actions {
+  display: flex;
+}
+
 /* === Kanban Board === */
 .ms-kanban {
   display: grid;
@@ -45,6 +207,117 @@
 
 .ms-kanban-column-body:has(.ms-dragging) {
   background: rgba(233, 69, 96, 0.03);
+}
+
+/* --- Kanban Cards --- */
+.ms-kanban-card {
+  background: var(--ms-bg-card);
+  border-radius: var(--ms-radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: var(--ms-transition);
+  border: 1px solid var(--ms-border);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: none;
+}
+
+.ms-kanban-card:hover {
+  border-color: var(--ms-accent);
+  box-shadow: var(--ms-shadow);
+  transform: translateY(-1px);
+}
+
+.ms-kanban-card-dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+}
+
+/* Column color accent bar */
+[data-column="pending"] .ms-kanban-card {
+  border-left: 3px solid var(--ms-warning);
+}
+[data-column="generating"] .ms-kanban-card {
+  border-left: 3px solid var(--ms-info);
+}
+[data-column="review"] .ms-kanban-card {
+  border-left: 3px solid var(--ms-accent);
+}
+[data-column="approved"] .ms-kanban-card {
+  border-left: 3px solid var(--ms-success);
+}
+
+.ms-task-type-badge,
+.ms-task-mode-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--ms-radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.ms-task-mode-badge {
+  background: var(--ms-bg-secondary);
+  color: var(--ms-text-secondary);
+  border: 1px solid var(--ms-border);
+  margin-left: 4px;
+}
+
+.ms-task-summary {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ms-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ms-task-time {
+  font-size: 11px;
+  color: var(--ms-text-secondary);
+}
+
+.ms-kanban-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ms-card-footer-spacer {
+  flex: 1;
+}
+
+.ms-kanban-action-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--ms-transition);
+}
+
+.ms-kanban-action-btn:hover {
+  background: var(--ms-border);
+  color: var(--ms-text-primary);
+}
+
+.ms-kanban-close-btn:hover {
+  border-color: var(--ms-danger);
+  color: var(--ms-danger);
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.ms-kanban-archive-btn:hover {
+  border-color: var(--ms-warning);
+  color: var(--ms-warning);
+  background: rgba(255, 152, 0, 0.1);
 }
 
 /* === Media Card === */
