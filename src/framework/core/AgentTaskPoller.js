@@ -1,165 +1,121 @@
-const AGENT_DIR = '.agent';
+const AGENT_TASKS_DIR = '.agent-tasks';
+
+function _defaultIndex() {
+  return { version: 1, processing: null, tasks: {} };
+}
 
 export class AgentTaskPoller {
   constructor({ api }) {
     this.api = api;
   }
 
-  // ── 传输层：任务队列扫描 ──
+  // ── 索引管理 ──
 
-  async scan() {
-    const tasks = [];
+  async readIndex() {
     try {
-      const entries = await this.api.tree(`${AGENT_DIR}/tasks`);
-      const list = Array.isArray(entries) ? entries : [];
-      for (const entry of list) {
-        if (entry.type === 'dir' || !entry.name.includes('.')) {
-          const uuid = entry.name;
-          try {
-            const job = await this.api.readJSON(`${AGENT_DIR}/tasks/${uuid}/job.json`);
-            tasks.push({ uuid, job, dir: `${AGENT_DIR}/tasks/${uuid}` });
-          } catch {
-            continue;
-          }
-        }
-      }
+      return await this.api.readJSON(`${AGENT_TASKS_DIR}/index.json`);
     } catch {
-      // tasks dir may not exist
-    }
-    return tasks;
-  }
-
-  isPendingTask(task) {
-    return task && task.job && task.job.status === 'pending';
-  }
-
-  // ── 传输层：任务拾取（防重复） ──
-
-  async pickup(uuid) {
-    const src = `${AGENT_DIR}/tasks/${uuid}`;
-    const dst = `${AGENT_DIR}/processing/${uuid}`;
-
-    try {
-      // Check if source exists
-      await this.api.tree(src);
-
-      // Move (cross-directory via rename API)
-      const srcParent = `${AGENT_DIR}/tasks`;
-      const dstParent = `${AGENT_DIR}/processing`;
-      await this.api.mkdir(dstParent);
-      await this.api.rename(`${srcParent}/${uuid}`, `${dstParent}/${uuid}`);
-      return true;
-    } catch {
-      return false;
+      return _defaultIndex();
     }
   }
 
-  // ── 传输层：任务创建 ──
+  async writeIndex(data) {
+    const tmp = `${AGENT_TASKS_DIR}/index.tmp`;
+    const target = `${AGENT_TASKS_DIR}/index.json`;
+    await this.api.writeJSON(tmp, data);
+    try { await this.api.delete(target); } catch {}
+    await this.api.rename(tmp, target);
+  }
 
-  async createTask(type, briefContent, files = []) {
-    // 1. 生成 UUID
-    const uuid = crypto.randomUUID();
+  async updateTaskStatus(uuid, status) {
+    const index = await this.readIndex();
+    const now = new Date().toISOString();
 
-    // 2. 创建任务目录
-    const taskDir = `${AGENT_DIR}/tasks/${uuid}`;
+    if (!index.tasks[uuid]) {
+      index.tasks[uuid] = { status: 'pending', createdAt: now, pickedAt: null, completedAt: null };
+    }
+
+    index.tasks[uuid].status = status;
+
+    if (status === 'generating') {
+      index.tasks[uuid].pickedAt = now;
+      index.processing = uuid;
+    } else if (status === 'done' || status === 'failed') {
+      index.tasks[uuid].completedAt = now;
+      index.processing = null;
+    }
+
+    await this.writeIndex(index);
+  }
+
+  // ── 任务创建 ──
+
+  async createTask(type, briefContent, files = [], taskId) {
+    const uuid = taskId || crypto.randomUUID();
+    const taskDir = `${AGENT_TASKS_DIR}/${uuid}`;
     const filesDir = `${taskDir}/files`;
 
     try {
       await this.api.mkdir(taskDir);
 
-      // 3. 写入 job.json（薄元数据）
       await this.api.writeJSON(`${taskDir}/job.json`, {
         type,
         taskId: uuid,
         status: 'pending',
         createdAt: new Date().toISOString()
       });
-
-      // 4. 写入 brief.md
       await this.api.write(`${taskDir}/brief.md`, briefContent);
 
-      // 5. 复制附件（可选）
       if (files.length > 0) {
         await this.api.mkdir(filesDir);
         for (const filePath of files) {
           try {
             const name = filePath.split('/').pop() || filePath.split('\\').pop();
             await this.api.copy(filePath, `${filesDir}/${name}`);
-          } catch {
-            // skip individual file copy failure
-          }
+          } catch {}
         }
       }
 
+      const index = await this.readIndex();
+      index.tasks[uuid] = {
+        status: 'pending',
+        type,
+        createdAt: new Date().toISOString(),
+        pickedAt: null,
+        completedAt: null
+      };
+      await this.writeIndex(index);
+
       return uuid;
     } catch (err) {
-      // 任何步骤失败，清理整个任务目录
-      try {
-        await this.api.delete(taskDir);
-      } catch {
-        // cleanup failure is non-fatal
-      }
+      try { await this.api.delete(taskDir); } catch {}
       throw err;
     }
   }
 
-  // ── 传输层：结果阶段标记（仅创建目录 + 清理 processing） ──
+  // ── 读取任务文件 ──
 
-  async stageResult(uuid) {
+  async readBrief(uuid) {
     try {
-      await this.api.mkdir(`${AGENT_DIR}/results/${uuid}`);
-    } catch {
-      return false;
-    }
-
-    // Cleanup processing directory
-    try {
-      await this.api.delete(`${AGENT_DIR}/processing/${uuid}`);
-    } catch {
-      // may already be cleaned up
-    }
-
-    return true;
-  }
-
-  // ── 传输层：结果采集（返回原始文本，不解析） ──
-
-  async collect() {
-    const results = [];
-    try {
-      const entries = await this.api.tree(`${AGENT_DIR}/results`);
-      const list = Array.isArray(entries) ? entries : [];
-      for (const entry of list) {
-        if (entry.type === 'dir' || !entry.name.includes('.')) {
-          const uuid = entry.name;
-          try {
-            const resultText = await this.api.read(`${AGENT_DIR}/results/${uuid}/result.md`);
-            results.push({ uuid, resultText });
-
-            // Collect-and-clean: remove the result directory after reading
-            try {
-              await this.api.delete(`${AGENT_DIR}/results/${uuid}`);
-            } catch {
-              // cleanup failure is non-fatal
-            }
-          } catch {
-            continue;
-          }
-        }
-      }
-    } catch {
-      // results dir may not exist
-    }
-    return results;
-  }
-
-  // ── 传输层：单个结果读取 ──
-
-  async readResult(uuid) {
-    try {
-      return await this.api.read(`${AGENT_DIR}/results/${uuid}/result.md`);
+      return await this.api.read(`${AGENT_TASKS_DIR}/${uuid}/brief.md`);
     } catch {
       return null;
     }
+  }
+
+  async readResult(uuid) {
+    try {
+      return await this.api.read(`${AGENT_TASKS_DIR}/${uuid}/result.md`);
+    } catch {
+      return null;
+    }
+  }
+
+  // ── 写入结果 ──
+
+  async writeResult(uuid, resultContent) {
+    const taskDir = `${AGENT_TASKS_DIR}/${uuid}`;
+    await this.api.write(`${taskDir}/result.md`, resultContent);
+    await this.updateTaskStatus(uuid, 'done');
   }
 }
