@@ -40,6 +40,9 @@ workspace/themes/
 workspace/workflows/
 workspace/.trash/
 
+# AI Agent runtime artifacts
+.sisyphus/
+
 # OpenCode internal (handled by .opencode/.gitignore)
 .opencode/node_modules/
 .opencode/package-lock.json
