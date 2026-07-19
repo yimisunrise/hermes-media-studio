@@ -20,11 +20,35 @@ export class AssetCard {
 
     if (this.asset.type === 'image' && this.asset.filePath) {
       const img = document.createElement('img');
-      img.src = '/' + this.asset.filePath;
       img.alt = this.asset.fileName || '';
       img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
       img.onerror = function () { this.style.display = 'none'; };
       thumb.appendChild(img);
+      if (this.options.api) {
+        this.options.api.readAsDataURL(this.asset.filePath, this.asset.mimeType)
+          .then(url => { img.src = url; })
+          .catch(() => { img.style.display = 'none'; });
+      }
+    } else if (this.asset.type === 'video' && this.asset.filePath) {
+      thumb.style.position = 'relative';
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+      video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      video.onerror = function () { this.style.display = 'none'; };
+      thumb.appendChild(video);
+
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.25);pointer-events:none;';
+      overlay.innerHTML = '<svg viewBox="0 0 24 24" width="36" height="36" fill="rgba(255,255,255,0.85)"><path d="M8 5v14l11-7z"/></svg>';
+      thumb.appendChild(overlay);
+
+      if (this.options.api) {
+        this.options.api.getDownloadUrl(this.asset.filePath, this.asset.mimeType)
+          .then(url => { video.src = url; })
+          .catch(() => { video.style.display = 'none'; overlay.style.display = 'none'; });
+      }
     } else {
       const icons = { image: '\u{1F5BC}', video: '\u{1F3AC}', audio: '\u{1F3B5}' };
       const iconEl = document.createElement('div');
@@ -92,11 +116,35 @@ export class AssetCard {
 
     if (this.asset.type === 'image' && this.asset.filePath) {
       const img = document.createElement('img');
-      img.src = '/' + this.asset.filePath;
       img.alt = '';
       img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
       img.onerror = function () { this.style.display = 'none'; };
       thumb.appendChild(img);
+      if (this.options.api) {
+        this.options.api.readAsDataURL(this.asset.filePath, this.asset.mimeType)
+          .then(url => { img.src = url; })
+          .catch(() => { img.style.display = 'none'; });
+      }
+    } else if (this.asset.type === 'video' && this.asset.filePath) {
+      thumb.style.position = 'relative';
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+      video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      video.onerror = function () { this.style.display = 'none'; };
+      thumb.appendChild(video);
+
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.25);pointer-events:none;';
+      overlay.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="rgba(255,255,255,0.85)"><path d="M8 5v14l11-7z"/></svg>';
+      thumb.appendChild(overlay);
+
+      if (this.options.api) {
+        this.options.api.getDownloadUrl(this.asset.filePath, this.asset.mimeType)
+          .then(url => { video.src = url; })
+          .catch(() => { video.style.display = 'none'; overlay.style.display = 'none'; });
+      }
     } else {
       const icons = { image: '\u{1F5BC}', video: '\u{1F3AC}', audio: '\u{1F3B5}' };
       const iconEl = document.createElement('span');

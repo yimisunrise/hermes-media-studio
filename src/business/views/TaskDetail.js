@@ -1,23 +1,19 @@
 import { empty } from '../../framework/utils/dom.js';
 import { formatDateTime } from '../../framework/utils/format.js';
-import { taskRepo, assetRepo, contentRepo, repo } from '../data/index.js';
+import { taskRepo, assetRepo, contentRepo, repo, templateRepo } from '../data/index.js';
 import { AssetCard } from './components/AssetCard.js';
 import { ContentEditor } from './ContentEditor.js';
+import { Modal } from '../../framework/ui/Modal.js';
+import { AssetUploader } from '../services/AssetUploader.js';
 
 export class TaskDetail {
   static async open(api, state, schemaRegistry, task) {
-    const overlay = document.createElement('div');
-    overlay.className = 'ms-task-modal-overlay';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-    const modal = document.createElement('div');
-    modal.className = 'ms-task-modal';
-    modal.style.cssText = 'width:680px;max-width:92vw;max-height:85vh;overflow-y:auto;';
+    const modal = new Modal({ width: '680px' });
 
     const title = document.createElement('h3');
     const typeLabels = { media: '素材任务', copywriting: '文案任务' };
     title.textContent = (typeLabels[task.taskType] || '') + '详情';
-    modal.appendChild(title);
+    modal.bodyEl.appendChild(title);
 
     const infoSection = document.createElement('div');
     infoSection.style.cssText = 'margin-bottom:20px;';
@@ -61,7 +57,7 @@ export class TaskDetail {
     timeEl.style.cssText = 'font-size:11px;color:var(--ms-text-secondary,#a0a0a0);margin-top:4px;';
     timeEl.textContent = '创建时间: ' + formatDateTime(task.createdAt);
     infoSection.appendChild(timeEl);
-    modal.appendChild(infoSection);
+    modal.bodyEl.appendChild(infoSection);
 
     const assetSection = document.createElement('div');
     assetSection.style.cssText = 'margin-bottom:20px;';
@@ -75,7 +71,6 @@ export class TaskDetail {
     uploadBtn.className = 'ms-btn ms-btn-sm';
     uploadBtn.textContent = '+ 上传';
     uploadBtn.addEventListener('click', () => {
-      const overlay2 = overlay;
       const input = document.createElement('input');
       input.type = 'file';
       input.style.display = 'none';
@@ -83,7 +78,8 @@ export class TaskDetail {
       input.addEventListener('change', async (e) => {
         const file = (e.target.files || [])[0];
         if (!file) return;
-        await TaskDetail._uploadAsset(api, schemaRegistry, task.id, file);
+        const ar = assetRepo(api, schemaRegistry);
+        await AssetUploader.uploadFile(file, api, ar, { taskId: task.id });
         await TaskDetail._reloadAssetList(api, schemaRegistry, task.id, assetList);
       });
       document.body.appendChild(input);
@@ -97,7 +93,7 @@ export class TaskDetail {
     assetList.id = 'media-studio-task-detail-assets';
     assetList.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
     assetSection.appendChild(assetList);
-    modal.appendChild(assetSection);
+    modal.bodyEl.appendChild(assetSection);
 
     const contentSection = document.createElement('div');
     contentSection.style.cssText = 'margin-bottom:16px;';
@@ -121,37 +117,144 @@ export class TaskDetail {
           content: '',
           status: 'draft'
         });
-        overlay.remove();
+        modal.close();
         await TaskDetail._openContentEditor(api, state, schemaRegistry, task, newContent);
       } catch (e) {
         console.error('创建文稿失败:', e);
       }
     });
     contentHeader.appendChild(newContentBtn);
+
+    const templateBtn = document.createElement('button');
+    templateBtn.className = 'ms-btn ms-btn-sm';
+    templateBtn.textContent = '从模板新建';
+    templateBtn.style.marginLeft = '8px';
+    templateBtn.addEventListener('click', async () => {
+      const panelId = 'media-studio-template-selector-panel';
+      const existing = document.getElementById(panelId);
+      if (existing) { existing.remove(); return; }
+
+      const panel = document.createElement('div');
+      panel.id = panelId;
+      panel.className = 'ms-template-selector-panel';
+      panel.style.cssText = 'position:absolute;z-index:10000;width:300px;max-height:320px;overflow-y:auto;background:var(--ms-bg-card,#0f3460);border:1px solid var(--ms-border,#2a2a4a);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:8px 0;';
+      const btnTop = templateBtn.offsetTop;
+      const btnLeft = templateBtn.offsetLeft;
+      const btnHeight = templateBtn.offsetHeight;
+      panel.style.top = (btnTop + btnHeight + 4) + 'px';
+      panel.style.left = btnLeft + 'px';
+      panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ms-text-secondary,#a0a0a0);font-size:13px;">加载中...</div>';
+
+      if (contentHeader.style.position !== 'relative') {
+        contentHeader.style.position = 'relative';
+      }
+      contentHeader.appendChild(panel);
+
+      const clickOutside = (e) => {
+        if (!panel.contains(e.target) && e.target !== templateBtn) {
+          panel.remove();
+          document.removeEventListener('click', clickOutside);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', clickOutside), 0);
+
+      try {
+        const tr = templateRepo(api, schemaRegistry);
+        const result = await tr.find({ filter: { type: 'content' }, sort: '-createdAt' });
+        const templates = result.records || [];
+
+        panel.innerHTML = '';
+        if (templates.length === 0) {
+          panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ms-text-secondary,#a0a0a0);font-size:13px;">暂无 content 类型模板</div>';
+          return;
+        }
+
+        for (const tmpl of templates) {
+          const item = document.createElement('div');
+          item.className = 'ms-template-selector-item';
+          item.style.cssText = 'padding:10px 14px;cursor:pointer;transition:background 0.15s;';
+          item.innerHTML = `<div style="font-size:13px;font-weight:500;color:var(--ms-text-primary,#e0e0e0);margin-bottom:2px;">${TaskDetail._escapeHtml(tmpl.name || '未命名')}</div>` +
+            (tmpl.description ? `<div style="font-size:11px;color:var(--ms-text-secondary,#a0a0a0);">${TaskDetail._escapeHtml(tmpl.description)}</div>` : '');
+          item.onmouseenter = () => { item.style.background = 'var(--ms-bg-primary,#1a1a2e)'; };
+          item.onmouseleave = () => { item.style.background = ''; };
+          item.addEventListener('click', async () => {
+            try {
+              const cr = contentRepo(api, schemaRegistry);
+              const newContent = await cr.create({
+                taskId: task.id,
+                topicId: task.topicId || '',
+                version: 1,
+                title: tmpl.name || '新文稿',
+                content: tmpl.content || '',
+                status: 'draft'
+              });
+              panel.remove();
+              document.removeEventListener('click', clickOutside);
+              modal.close();
+              await TaskDetail._openContentEditor(api, state, schemaRegistry, task, newContent);
+            } catch (e) {
+              console.error('从模板创建文稿失败:', e);
+            }
+          });
+          panel.appendChild(item);
+        }
+      } catch (e) {
+        panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ms-danger,#e74c3c);font-size:13px;">加载模板失败</div>';
+      }
+    });
+    contentHeader.appendChild(templateBtn);
     contentSection.appendChild(contentHeader);
 
     const contentList = document.createElement('div');
     contentList.id = 'media-studio-task-detail-contents';
     contentList.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
     contentSection.appendChild(contentList);
-    modal.appendChild(contentSection);
+    modal.bodyEl.appendChild(contentSection);
 
-    const closeArea = document.createElement('div');
-    closeArea.style.cssText = 'display:flex;justify-content:flex-end;margin-top:8px;';
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'ms-btn';
-    closeBtn.textContent = '关闭';
-    closeBtn.addEventListener('click', () => overlay.remove());
-    closeArea.appendChild(closeBtn);
-    modal.appendChild(closeArea);
-
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    modal.setFooter('<button class="ms-btn" id="td-close">关闭</button>');
+    modal.open();
+    modal.el.querySelector('#td-close').onclick = () => modal.close();
 
     await Promise.all([
       TaskDetail._reloadAssetList(api, schemaRegistry, task.id, assetList),
-      TaskDetail._reloadContentList(api, state, schemaRegistry, task, contentList)
+      TaskDetail._reloadContentList(api, state, schemaRegistry, task, contentList, () => modal.close())
     ]);
+
+    // 发布入口 — 当内容已定稿时显示
+    const publishEntry = document.createElement('div');
+    publishEntry.style.cssText = 'margin-top:12px;padding-top:12px;border-top:1px solid var(--ms-border,#2a2a4a);';
+    try {
+      const cr = contentRepo(api, schemaRegistry);
+      const contentResult = await cr.find({ filter: { taskId: task.id }, sort: '-version' });
+      const contents = contentResult.records || [];
+      const finalizedContents = contents.filter(c => c.status === 'finalized');
+      if (finalizedContents.length > 0) {
+        let pkgCount = 0;
+        const pkgRepo = repo(api, schemaRegistry, 'packages');
+        for (const c of finalizedContents) {
+          const pkgResult = await pkgRepo.find({ filter: { contentId: c.id } });
+          if (pkgResult && pkgResult.records) {
+            pkgCount += pkgResult.records.length;
+          }
+        }
+        if (pkgCount > 0) {
+          const link = document.createElement('a');
+          link.style.cssText = 'font-size:13px;color:var(--ms-accent,#e94560);cursor:pointer;text-decoration:none;';
+          link.textContent = '查看发布包 (' + pkgCount + ') →';
+          link.addEventListener('click', () => { window.location.hash = '#publish'; });
+          publishEntry.appendChild(link);
+        } else {
+          const btn = document.createElement('button');
+          btn.className = 'ms-btn ms-btn-sm';
+          btn.textContent = '创建发布包';
+          btn.addEventListener('click', () => { window.location.hash = '#publish'; });
+          publishEntry.appendChild(btn);
+        }
+        modal.bodyEl.appendChild(publishEntry);
+      }
+    } catch (e) {
+      // 发布数据查询失败，静默忽略
+    }
   }
 
   static async _reloadAssetList(api, sr, taskId, container) {
@@ -169,11 +272,46 @@ export class TaskDetail {
       for (const asset of assets) {
         const card = new AssetCard(asset, {
           compact: true,
-          onClick: (a) => {
-            window.open('/' + a.filePath, '_blank');
+          api: api,
+          onClick: async (a) => {
+            if (a.type === 'video' && a.filePath) {
+              const previewModal = new Modal({ title: '视频预览', width: '600px' });
+              const bodyHtml = `<div style="text-align:center;">
+                <video id="td-preview-video" controls playsinline style="max-width:100%;max-height:360px;border-radius:var(--ms-radius-sm,4px);background:#000;"></video>
+                <div id="td-preview-loading" style="padding:40px;color:var(--ms-text-secondary,#a0a0a0);font-size:13px;">加载中...</div>
+              </div>`;
+              previewModal.setBody(bodyHtml);
+              previewModal.open();
+              try {
+                const url = await api.getDownloadUrl(a.filePath, a.mimeType);
+                const videoEl = previewModal.el.querySelector('#td-preview-video');
+                const loadingEl = previewModal.el.querySelector('#td-preview-loading');
+                if (videoEl && loadingEl) {
+                  videoEl.src = url;
+                  videoEl.style.display = '';
+                  loadingEl.style.display = 'none';
+                }
+              } catch (e) {
+                const loadingEl = previewModal.el.querySelector('#td-preview-loading');
+                if (loadingEl) loadingEl.textContent = '加载失败';
+              }
+            } else {
+              try {
+                const url = await api.getDownloadUrl(a.filePath, a.mimeType);
+                window.open(url, '_blank');
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+              } catch (e) {
+                console.error('预览失败:', e);
+              }
+            }
           },
           onDelete: async (a) => {
             try {
+              if (a.filePath) {
+                try { await api.delete(a.filePath); } catch (e) {
+                  console.warn('删除磁盘文件失败（可能已不存在）:', e);
+                }
+              }
               await ar.delete(a.id);
               await TaskDetail._reloadAssetList(api, sr, taskId, container);
             } catch (e) {
@@ -181,14 +319,31 @@ export class TaskDetail {
             }
           }
         });
-        container.appendChild(card.render());
+        const cardEl = card.render();
+        container.appendChild(cardEl);
+
+        if (asset.filePath) {
+          const dlBtn = document.createElement('button');
+          dlBtn.innerHTML = '&#8595;';
+          dlBtn.title = '下载原始文件';
+          dlBtn.style.cssText = 'width:22px;height:22px;border:none;background:transparent;color:var(--ms-info,#4a90d9);cursor:pointer;font-size:14px;flex-shrink:0;';
+          dlBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+              await api.downloadAsFile(asset.filePath, asset.fileName, asset.mimeType);
+            } catch (e) {
+              console.error('下载失败:', e);
+            }
+          });
+          cardEl.appendChild(dlBtn);
+        }
       }
     } catch (e) {
       container.innerHTML = '<div style="font-size:12px;color:var(--ms-danger,#e74c3c);padding:12px;">加载素材失败</div>';
     }
   }
 
-  static async _reloadContentList(api, state, sr, task, container) {
+  static async _reloadContentList(api, state, sr, task, container, onClose) {
     try {
       const cr = contentRepo(api, sr);
       const result = await cr.find({ filter: { taskId: task.id }, sort: '-version' });
@@ -213,8 +368,7 @@ export class TaskDetail {
         row.onmouseenter = () => { row.style.borderColor = 'var(--ms-accent,#e94560)'; };
         row.onmouseleave = () => { row.style.borderColor = 'transparent'; };
         row.onclick = async () => {
-          const overlay2 = document.querySelector('.ms-task-modal-overlay:last-child');
-          if (overlay2) overlay2.remove();
+          if (onClose) onClose();
           await TaskDetail._openContentEditor(api, state, sr, task, content);
         };
         container.appendChild(row);
@@ -225,76 +379,18 @@ export class TaskDetail {
   }
 
   static async _openContentEditor(api, state, sr, task, content) {
-    const overlay = document.createElement('div');
-    overlay.className = 'ms-task-modal-overlay';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-    const modal = document.createElement('div');
-    modal.className = 'ms-task-modal';
-    modal.style.cssText = 'width:820px;max-width:95vw;height:70vh;max-height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden;';
-
-    const header = document.createElement('div');
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--ms-border,#2a2a4a);flex-shrink:0;';
-    const headerTitle = document.createElement('div');
-    headerTitle.style.cssText = 'font-size:14px;font-weight:600;color:var(--ms-text-primary,#e0e0e0);';
-    headerTitle.textContent = '文稿编辑';
-    header.appendChild(headerTitle);
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'ms-btn ms-btn-sm';
-    closeBtn.textContent = '关闭';
-    closeBtn.onclick = () => overlay.remove();
-    header.appendChild(closeBtn);
-    modal.appendChild(header);
-
-    const editorContainer = document.createElement('div');
-    editorContainer.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;';
+    const modal = new Modal({ title: '文稿编辑', width: '820px' });
+    modal.el.style.height = '70vh';
+    modal.bodyEl.style.padding = '0';
+    modal.bodyEl.style.cssText += ';flex:1;overflow:hidden;display:flex;flex-direction:column;';
 
     const editor = new ContentEditor({ api, state, schemaRegistry: sr });
-    await editor.render(editorContainer, {
+    await editor.render(modal.bodyEl, {
       taskId: task.id,
       existingContent: content
     });
 
-    modal.appendChild(editorContainer);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-  }
-
-  static async _uploadAsset(api, sr, taskId, file) {
-    let type = 'other';
-    if (file.type.startsWith('image/')) type = 'image';
-    else if (file.type.startsWith('video/')) type = 'video';
-    else if (file.type.startsWith('audio/')) type = 'audio';
-
-    const uuid = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
-    const now = new Date();
-    const monthDir = String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    const relPath = 'assets/' + monthDir + '/' + uuid + '-' + file.name;
-
-    try {
-      await api.mkdir('assets/' + monthDir);
-      const reader = new FileReader();
-      const dataUrl = await new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-      });
-      await api.write(relPath, dataUrl);
-      const ar = assetRepo(api, sr);
-      await ar.create({
-        taskId: taskId,
-        type: type,
-        fileName: file.name,
-        filePath: relPath,
-        mimeType: file.type,
-        fileSize: file.size,
-        thumbnailPath: '',
-        metadata: {},
-        status: 'completed'
-      });
-    } catch (e) {
-      console.error('上传素材失败:', e);
-    }
+    modal.open();
   }
 
   static _escapeHtml(str) {

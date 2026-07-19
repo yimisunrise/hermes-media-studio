@@ -1,6 +1,8 @@
 import { empty } from '../../framework/utils/dom.js';
 import { assetRepo } from '../data/index.js';
 import { AssetCard } from './components/AssetCard.js';
+import { Modal } from '../../framework/ui/Modal.js';
+import { AssetUploader } from '../services/AssetUploader.js';
 
 const TYPE_FILTERS = [
   { value: 'all', label: '全部类型' },
@@ -36,6 +38,7 @@ export class AssetGallery {
       .ms-asset-card:hover { border-color: var(--ms-accent, #e94560); }
       .ms-asset-thumb { width: 100%; height: 140px; background: var(--ms-bg-primary, #1a1a2e); display: flex; align-items: center; justify-content: center; overflow: hidden; }
       .ms-asset-thumb img { width: 100%; height: 100%; object-fit: cover; }
+      .ms-asset-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
       .ms-asset-thumb-icon { font-size: 32px; color: var(--ms-text-secondary, #a0a0a0); }
       .ms-asset-info { padding: 10px 12px; }
       .ms-asset-name { font-size: 13px; color: var(--ms-text-primary, #e0e0e0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
@@ -127,6 +130,7 @@ export class AssetGallery {
 
     for (const asset of filtered) {
       const card = new AssetCard(asset, {
+        api: this.api,
         onClick: (a) => this._showAssetDetail(a),
         onDelete: (a) => this._deleteAsset(a)
       });
@@ -154,39 +158,8 @@ export class AssetGallery {
   }
 
   async _uploadFile(file) {
-    let type = 'other';
-    if (file.type.startsWith('image/')) type = 'image';
-    else if (file.type.startsWith('video/')) type = 'video';
-    else if (file.type.startsWith('audio/')) type = 'audio';
-
-    const uuid = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
-    const now = new Date();
-    const monthDir = String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    const relPath = 'assets/' + monthDir + '/' + uuid + '-' + file.name;
-
     try {
-      await this.api.mkdir('assets/' + monthDir);
-
-      const reader = new FileReader();
-      const dataUrl = await new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-      });
-
-      await this.api.write(relPath, dataUrl);
-
-      await this._ar().create({
-        taskId: '',
-        type: type,
-        fileName: file.name,
-        filePath: relPath,
-        mimeType: file.type,
-        fileSize: file.size,
-        thumbnailPath: '',
-        metadata: {},
-        status: 'completed'
-      });
+      await AssetUploader.uploadFile(file, this.api, this._ar());
     } catch (e) {
       console.error('上传素材失败:', e);
     }
@@ -194,6 +167,13 @@ export class AssetGallery {
 
   async _deleteAsset(asset) {
     try {
+      if (asset.filePath) {
+        try {
+          await this.api.delete(asset.filePath);
+        } catch (e) {
+          console.warn('删除磁盘文件失败（可能已不存在）:', e);
+        }
+      }
       await this._ar().delete(asset.id);
       await this._loadAndRender();
     } catch (e) {
@@ -201,26 +181,21 @@ export class AssetGallery {
     }
   }
 
-  _showAssetDetail(asset) {
-    const overlay = document.createElement('div');
-    overlay.className = 'ms-task-modal-overlay';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  async _showAssetDetail(asset) {
+    const modal = new Modal({ title: '素材详情', size: 'md' });
 
-    const modal = document.createElement('div');
-    modal.className = 'ms-task-modal';
-
-    const title = document.createElement('h3');
-    title.textContent = '素材详情';
-    modal.appendChild(title);
-
+    let bodyHtml = '';
     if (asset.type === 'image' && asset.filePath) {
-      const previewContainer = document.createElement('div');
-      previewContainer.style.cssText = 'text-align:center;margin-bottom:16px;';
-      const img = document.createElement('img');
-      img.src = '/' + asset.filePath;
-      img.style.cssText = 'max-width:100%;max-height:300px;border-radius:var(--ms-radius-sm, 4px);';
-      previewContainer.appendChild(img);
-      modal.appendChild(previewContainer);
+      bodyHtml += `<div style="text-align:center;margin-bottom:16px;">
+        <img id="ag-preview-img" src="" style="max-width:100%;max-height:300px;border-radius:var(--ms-radius-sm,4px);display:none;" />
+        <div id="ag-preview-loading" style="padding:40px;color:var(--ms-text-secondary,#a0a0a0);font-size:13px;">加载中...</div>
+      </div>`;
+    }
+    if (asset.type === 'video' && asset.filePath) {
+      bodyHtml += `<div style="text-align:center;margin-bottom:16px;">
+        <video id="ag-preview-video" controls playsinline style="max-width:100%;max-height:300px;border-radius:var(--ms-radius-sm,4px);display:none;background:#000;"></video>
+        <div id="ag-preview-loading" style="padding:40px;color:var(--ms-text-secondary,#a0a0a0);font-size:13px;">加载中...</div>
+      </div>`;
     }
 
     const fieldDefs = [
@@ -230,53 +205,92 @@ export class AssetGallery {
       { label: 'MIME 类型', value: asset.mimeType || '-' },
       { label: '创建时间', value: asset.createdAt || '-' }
     ];
-
     for (const f of fieldDefs) {
-      const row = document.createElement('div');
-      row.className = 'ms-form-row';
-      row.style.cssText = 'margin-bottom:12px;flex-direction:column;align-items:stretch;';
-      const label = document.createElement('div');
-      label.className = 'ms-form-label';
-      label.style.cssText = 'font-size:12px;margin-bottom:4px;';
-      label.textContent = f.label;
-      const val = document.createElement('div');
-      val.style.cssText = 'font-size:13px;color:var(--ms-text-primary, #e0e0e0);word-break:break-all;';
-      val.textContent = f.value;
-      row.appendChild(label);
-      row.appendChild(val);
-      modal.appendChild(row);
+      bodyHtml += `<div class="ms-form-row" style="margin-bottom:12px;flex-direction:column;align-items:stretch;">
+        <div class="ms-form-label" style="font-size:12px;margin-bottom:4px;">${f.label}</div>
+        <div style="font-size:13px;color:var(--ms-text-primary,#e0e0e0);word-break:break-all;">${String(f.value)}</div>
+      </div>`;
     }
 
-    const actionArea = document.createElement('div');
-    actionArea.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:16px;';
+    modal.setBody(bodyHtml);
+    modal.open();
 
+    // Async load preview image/video via API
+    if (asset.type === 'image' && asset.filePath) {
+      this.api.readAsDataURL(asset.filePath, asset.mimeType).then(url => {
+        const img = modal.el.querySelector('#ag-preview-img');
+        const loading = modal.el.querySelector('#ag-preview-loading');
+        if (img && loading) {
+          img.src = url;
+          img.style.display = '';
+          loading.style.display = 'none';
+        }
+      }).catch(() => {
+        const loading = modal.el.querySelector('#ag-preview-loading');
+        if (loading) loading.textContent = '加载失败';
+      });
+    }
+    if (asset.type === 'video' && asset.filePath) {
+      this.api.getDownloadUrl(asset.filePath, asset.mimeType).then(url => {
+        const video = modal.el.querySelector('#ag-preview-video');
+        const loading = modal.el.querySelector('#ag-preview-loading');
+        if (video && loading) {
+          video.src = url;
+          video.style.display = '';
+          loading.style.display = 'none';
+        }
+      }).catch(() => {
+        const loading = modal.el.querySelector('#ag-preview-loading');
+        if (loading) loading.textContent = '加载失败';
+      });
+    }
+
+    let footerHtml = '';
     if (asset.filePath) {
-      const previewBtn = document.createElement('button');
-      previewBtn.className = 'ms-btn';
-      previewBtn.textContent = '预览';
-      previewBtn.onclick = () => window.open('/' + asset.filePath, '_blank');
-      actionArea.appendChild(previewBtn);
+      footerHtml += `<button class="ms-btn" id="ag-preview">预览</button>`;
+      footerHtml += `<button class="ms-btn" id="ag-download" style="margin-left:6px;">下载原始文件</button>`;
     }
+    footerHtml += `<button class="ms-btn" style="color:var(--ms-danger,#e74c3c);border-color:var(--ms-danger,#e74c3c);" id="ag-delete">删除</button>
+      <button class="ms-btn ms-btn-primary" id="ag-close">关闭</button>`;
+    modal.setFooter(footerHtml);
 
-    const delBtn = document.createElement('button');
-    delBtn.className = 'ms-btn';
-    delBtn.textContent = '删除';
-    delBtn.style.cssText = 'color:var(--ms-danger, #e74c3c);border-color:var(--ms-danger, #e74c3c);';
-    delBtn.onclick = async () => {
+    modal.el.querySelector('#ag-close').onclick = () => modal.close();
+    if (asset.filePath) {
+      modal.el.querySelector('#ag-download').onclick = async () => {
+        const btn = modal.el.querySelector('#ag-download');
+        btn.textContent = '下载中...';
+        btn.disabled = true;
+        try {
+          await this.api.downloadAsFile(asset.filePath, asset.fileName, asset.mimeType);
+        } catch (e) {
+          console.error('下载失败:', e);
+        } finally {
+          btn.textContent = '下载原始文件';
+          btn.disabled = false;
+        }
+      };
+      modal.el.querySelector('#ag-preview').onclick = async () => {
+        if (asset.type === 'video') {
+          const video = modal.el.querySelector('#ag-preview-video');
+          if (video) {
+            video.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            video.play().catch(() => {});
+          }
+        } else {
+          try {
+            const url = await this.api.getDownloadUrl(asset.filePath, asset.mimeType);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+          } catch (e) {
+            console.error('预览失败:', e);
+          }
+        }
+      };
+    }
+    modal.el.querySelector('#ag-delete').onclick = async () => {
       if (!window.confirm('确认删除此素材？')) return;
       await this._deleteAsset(asset);
-      overlay.remove();
+      modal.close();
     };
-    actionArea.appendChild(delBtn);
-
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'ms-btn ms-btn-primary';
-    closeBtn.textContent = '关闭';
-    closeBtn.onclick = () => overlay.remove();
-    actionArea.appendChild(closeBtn);
-
-    modal.appendChild(actionArea);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
   }
 }
