@@ -1,5 +1,6 @@
 import { empty } from '../../framework/utils/dom.js';
 import { repo } from '../data/index.js';
+import { Modal } from '../../framework/ui/Modal.js';
 
 export class IdeaBoard {
   constructor({ api, state, schemaRegistry }) {
@@ -216,23 +217,19 @@ export class IdeaBoard {
 
   _openDetail(idea) {
     const isEdit = !!idea;
-    const ov = _ovl();
-    const md = _modal('width:480px;');
-    const h = _hdr(`${isEdit ? '编辑' : '详细'}灵感`, () => ov.remove());
-    md.append(h);
+    const m = new Modal({ title: `${isEdit ? '编辑' : '详细'}灵感`, size: 'md' });
     const b = ce('div', 'padding:16px 18px;');
-
     b.append(_fld('标题 *', 'idea-title', '一句话描述这个灵感', idea?.title||''));
     b.append(_fldArea('详细描述', 'idea-summary', '补充更多细节…', idea?.summary||''));
     b.append(_themeSel('关联主题', 'idea-theme', this.themes, idea?.themeId||''));
     b.append(_fld('标签（英文逗号分隔）', 'idea-tags', '如：科技, 设计', idea?.tags?.join(', ')||''));
     b.append(_fld('参考链接（每行一个）', 'idea-links', 'https://...', idea?.refLinks?.join('\n')||'', true));
-
-    md.append(b);
-
-    const f = ce('div', 'display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--ms-border);');
-    bn(btn('取消', null, () => ov.remove()), f);
-    bn(btn(isEdit ? '保存' : '创建', 'primary', async () => {
+    m.setBody(b);
+    m.setFooter(`<button class="ms-btn ms-btn-sm" id="idea-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary ms-btn-sm" id="idea-save">${isEdit ? '保存' : '创建'}</button>`);
+    m.open();
+    m.el.querySelector('#idea-cancel').onclick = () => m.close();
+    m.el.querySelector('#idea-save').onclick = async () => {
       const d = {
         title: _q('#idea-title')?.value?.trim() || '',
         summary: _q('#idea-summary')?.value?.trim() || '',
@@ -243,59 +240,48 @@ export class IdeaBoard {
       };
       if (!d.title) { const inp = _q('#idea-title'); inp.focus(); inp.style.borderColor='var(--ms-danger)'; return; }
       try {
-        if (isEdit)       await this._ideaRepo().update(idea.id, d);
+        if (isEdit) await this._ideaRepo().update(idea.id, d);
         else await this._ideaRepo().create(d);
-        ov.remove();
+        m.close();
         await this._loadIdeas();
         this._renderList();
       } catch(e) { console.error('保存灵感失败', e); }
-    }), f);
-    md.append(f);
-    ov.append(md);
-    document.body.append(ov);
+    };
     setTimeout(() => _q('#idea-title')?.focus(), 100);
   }
 
   async _toTopic(idea) {
     const name = idea.title;
-    const ov = _ovl();
-    const md = _modal('width:460px;');
-    const h = _hdr('从灵感创建选题', () => ov.remove());
-    md.append(h);
+    const m = new Modal({ title: '从灵感创建选题', width: '460px' });
     const b = ce('div', 'padding:16px 18px;');
-
     const src = ce('div', 'font-size:12px;color:var(--ms-text-secondary);margin-bottom:12px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:var(--ms-radius-sm);');
     src.innerHTML = `来源灵感：<strong>${idea.title}</strong>`;
     b.append(src);
-
     b.append(_fld('选题标题 *', 'tp-title', '', name));
     b.append(_fld('截止日期', 'tp-due', 'YYYY-MM-DD', ''));
-
     const ctRow = ce('div', 'margin-bottom:14px;');
     const ctL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '内容形态');
     ctRow.append(ctL);
     const sel = document.createElement('select');
     sel.className = 'ms-form-input'; sel.id = 'tp-type';
     sel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
-    const types = [['graphic','图文'], ['video','短视频'], ['text','纯文字']];
-    for (const [v,label] of types) {
+    for (const [v,label] of [['graphic','图文'], ['video','短视频'], ['text','纯文字']]) {
       const o = document.createElement('option'); o.value=v; o.textContent=label; bn(o, sel);
     }
     ctRow.append(sel);
     b.append(ctRow);
-
     b.append(_themeSel('关联主题', 'tp-theme', this.themes, idea.themeId||''));
-
-    md.append(b);
-    const f = ce('div', 'display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--ms-border);');
-    bn(btn('取消', null, () => ov.remove()), f);
-    bn(btn('创建选题', 'primary', async () => {
+    m.setBody(b);
+    m.setFooter(`<button class="ms-btn ms-btn-sm" id="tp-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary ms-btn-sm" id="tp-create">创建选题</button>`);
+    m.open();
+    m.el.querySelector('#tp-cancel').onclick = () => m.close();
+    m.el.querySelector('#tp-create').onclick = async () => {
       const title = _q('#tp-title')?.value?.trim() || name;
       if (!title) { _q('#tp-title')?.focus(); return; }
       try {
         await repo(this.api, this._sr, 'topics').create({
-          title,
-          ideaId: idea.id,
+          title, ideaId: idea.id,
           themeId: _q('#tp-theme')?.value || idea.themeId || '',
           contentType: _q('#tp-type')?.value || 'graphic',
           dueDate: _q('#tp-due')?.value?.trim() || null,
@@ -303,14 +289,11 @@ export class IdeaBoard {
         });
         idea.status = 'used';
         await this._ideaRepo().update(idea.id, { status: 'used' });
-        ov.remove();
+        m.close();
         await this._loadIdeas();
         this._renderList();
       } catch(e) { console.error('创建选题失败', e); }
-    }), f);
-    md.append(f);
-    ov.append(md);
-    document.body.append(ov);
+    };
     setTimeout(() => _q('#tp-title')?.focus(), 100);
   }
 
@@ -323,22 +306,21 @@ export class IdeaBoard {
   }
 
   async _delete(idea) {
-    const ov = _ovl();
-    const md = _modal('width:360px;');
-    const b = ce('div', 'padding:20px 18px;text-align:center;');
-    b.innerHTML = `<div style="font-size:16px;margin-bottom:12px;">确认删除这条灵感？</div><div style="font-size:12px;color:var(--ms-text-secondary);">「${idea.title}」</div>`;
-    md.append(b);
-    const f = ce('div', 'display:flex;justify-content:center;gap:8px;padding:12px 18px;border-top:1px solid var(--ms-border);');
-    bn(btn('取消', null, () => ov.remove()), f);
-    const db = ce('button', 'padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;', '确认删除');
-    db.onclick = async () => {
-      try { await this._ideaRepo().delete(idea.id); ov.remove(); await this._loadIdeas(); this._renderList(); }
+    const m = new Modal({ size: 'sm' });
+    m.setBody(`<div style="padding:20px 18px;text-align:center;">
+      <div style="font-size:16px;margin-bottom:12px;">确认删除这条灵感？</div>
+      <div style="font-size:12px;color:var(--ms-text-secondary);">「${idea.title}」</div>
+    </div>`);
+    m.setFooter(`<div style="display:flex;justify-content:center;gap:8px;">
+      <button class="ms-btn ms-btn-sm" id="idea-del-cancel">取消</button>
+      <button class="ms-btn ms-btn-sm" id="idea-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+    </div>`);
+    m.open();
+    m.el.querySelector('#idea-del-cancel').onclick = () => m.close();
+    m.el.querySelector('#idea-del-confirm').onclick = async () => {
+      try { await this._ideaRepo().delete(idea.id); m.close(); await this._loadIdeas(); this._renderList(); }
       catch(e) { console.error('删除失败', e); }
     };
-    bn(db, f);
-    md.append(f);
-    ov.append(md);
-    document.body.append(ov);
   }
 
   _d(iso) {
@@ -368,21 +350,6 @@ function btn(label, kind, onClick, title) {
   el.className = `ms-btn${kind==='primary'?' ms-btn-primary':''} ms-btn-sm`;
   el.onclick = onClick;
   return el;
-}
-function _ovl() {
-  const el = ce('div', 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:99998;');
-  el.onclick = (e) => { if (e.target===el) el.remove(); };
-  return el;
-}
-function _modal(w) {
-  return ce('div', `background:var(--ms-bg-card);border:1px solid var(--ms-border);border-radius:var(--ms-radius);box-shadow:var(--ms-shadow-lg);min-width:400px;max-width:600px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;`+w);
-}
-function _hdr(txt, onClose) {
-  const h = ce('div', 'display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--ms-border);font-weight:600;font-size:14px;');
-  h.innerHTML = `<span>${txt}</span>`;
-  const c = btn('✕', null, onClose);
-  bn(c, h);
-  return h;
 }
 function _fld(label, id, ph, val, multi) {
   const r = ce('div', 'margin-bottom:14px;');

@@ -1,5 +1,6 @@
 import { empty } from '../../framework/utils/dom.js';
 import { repo } from '../data/index.js';
+import { Modal } from '../../framework/ui/Modal.js';
 
 export class TopicBoard {
   constructor({ api, state, schemaRegistry }) {
@@ -149,13 +150,9 @@ export class TopicBoard {
   }
 
   _createFromIdea() {
-    const ov = _ovl();
-    const md = _modal('width:500px;');
-    md.append(_hdr('选择灵感', () => ov.remove()));
-
+    const m = new Modal({ title: '选择灵感', width: '500px' });
     const available = this.ideas.filter(i => i.status === 'active' || i.status === 'used');
     const b = ce('div', 'padding:12px 16px;overflow-y:auto;max-height:400px;');
-
     if (!available.length) {
       b.innerHTML = '<div class="ms-empty" style="margin:20px 0;"><div>暂无可用灵感，先去「灵感」中创建灵感吧</div></div>';
     } else {
@@ -166,58 +163,48 @@ export class TopicBoard {
         row.onmouseleave = () => { row.style.borderColor = 'transparent'; row.style.background = 'transparent'; };
         row.innerHTML = `<div style="flex:1;font-weight:500;font-size:13px;">${idea.title}</div><div style="font-size:11px;color:var(--ms-text-secondary);">${idea.status === 'used' ? '已转为选题' : ''}</div>`;
         if (idea.status === 'active') {
-          row.onclick = () => { ov.remove(); this._createTopic(idea); };
+          row.onclick = () => { m.close(); this._createTopic(idea); };
         }
         bn(row, b);
       }
     }
-
-    md.append(b);
-    const f = ce('div', 'display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--ms-border);');
-    bn(btn('取消', null, () => ov.remove()), f);
-    md.append(f);
-    ov.append(md);
-    document.body.append(ov);
+    m.setBody(b);
+    m.setFooter(`<button class="ms-btn ms-btn-sm" id="idea-select-cancel">取消</button>`);
+    m.open();
+    m.el.querySelector('#idea-select-cancel').onclick = () => m.close();
   }
 
   _createTopic(idea) {
-    const ov = _ovl();
-    const md = _modal('width:460px;');
-    md.append(_hdr('创建选题', () => ov.remove()));
+    const m = new Modal({ title: '创建选题', width: '460px' });
     const b = ce('div', 'padding:16px 18px;');
-
     const src = ce('div', 'font-size:12px;color:var(--ms-text-secondary);margin-bottom:12px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:var(--ms-radius-sm);');
     src.innerHTML = `来源灵感：<strong>${idea.title}</strong>`;
     b.append(src);
-
     b.append(_fld('选题标题 *', 't-title', '', idea.title));
     b.append(_fld('截止日期', 't-due', 'YYYY-MM-DD', ''));
-
     const ctRow = ce('div', 'margin-bottom:14px;');
     const ctL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '内容形态');
     ctRow.append(ctL);
     const sel = document.createElement('select');
     sel.className = 'ms-form-input'; sel.id = 't-type';
     sel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
-    const types = [['graphic','图文'], ['video','短视频'], ['text','纯文字']];
-    for (const [v,label] of types) {
+    for (const [v,label] of [['graphic','图文'], ['video','短视频'], ['text','纯文字']]) {
       const o = document.createElement('option'); o.value=v; o.textContent=label; bn(o, sel);
     }
     ctRow.append(sel);
     b.append(ctRow);
-
     b.append(_themeSel('关联主题', 't-theme', this.themes, idea.themeId||''));
-
-    md.append(b);
-    const f = ce('div', 'display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--ms-border);');
-    bn(btn('取消', null, () => ov.remove()), f);
-    bn(btn('创建', 'primary', async () => {
+    m.setBody(b);
+    m.setFooter(`<button class="ms-btn ms-btn-sm" id="tp-create-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary ms-btn-sm" id="tp-create-submit">创建</button>`);
+    m.open();
+    m.el.querySelector('#tp-create-cancel').onclick = () => m.close();
+    m.el.querySelector('#tp-create-submit').onclick = async () => {
       const title = _q('#t-title')?.value?.trim() || idea.title;
       if (!title) { _q('#t-title')?.focus(); return; }
       try {
         await this._topicRepo().create({
-          title,
-          ideaId: idea.id,
+          title, ideaId: idea.id,
           themeId: _q('#t-theme')?.value || idea.themeId || '',
           contentType: _q('#t-type')?.value || 'graphic',
           dueDate: _q('#t-due')?.value?.trim() || null,
@@ -226,62 +213,52 @@ export class TopicBoard {
         if (idea.status === 'active') {
           await this._ideaRepo().update(idea.id, { status: 'used' });
         }
-        ov.remove();
+        m.close();
         await this._loadTopics();
         this.render(this._container);
       } catch(e) { console.error('创建选题失败', e); }
-    }), f);
-    md.append(f);
-    ov.append(md);
-    document.body.append(ov);
+    };
     setTimeout(() => _q('#t-title')?.focus(), 100);
   }
 
   _editTopic(t) {
-    const ov = _ovl();
-    const md = _modal('width:460px;');
-    md.append(_hdr('编辑选题', () => ov.remove()));
+    const m = new Modal({ title: '编辑选题', width: '460px' });
     const b = ce('div', 'padding:16px 18px;');
-
     b.append(_fld('选题标题', 'e-title', '', t.title));
     b.append(_fld('截止日期', 'e-due', 'YYYY-MM-DD', t.dueDate||''));
-
     const ctRow = ce('div', 'margin-bottom:14px;');
     const ctL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '内容形态');
     ctRow.append(ctL);
     const sel = document.createElement('select');
     sel.className = 'ms-form-input'; sel.id = 'e-type';
     sel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
-    const types = [['graphic','图文'], ['video','短视频'], ['text','纯文字']];
-    for (const [v,label] of types) {
+    for (const [v,label] of [['graphic','图文'], ['video','短视频'], ['text','纯文字']]) {
       const o = document.createElement('option'); o.value=v; o.textContent=label;
       if (v===t.contentType) o.selected=true;
       bn(o, sel);
     }
     ctRow.append(sel);
     b.append(ctRow);
-
     b.append(_themeSel('关联主题', 'e-theme', this.themes, t.themeId||''));
-
     const stRow = ce('div', 'margin-bottom:14px;');
     const stL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '状态');
     stRow.append(stL);
     const stSel = document.createElement('select');
     stSel.className = 'ms-form-input'; stSel.id = 'e-status';
     stSel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
-    const stVal = [['pending','待处理'],['in_progress','进行中'],['completed','已完成'],['cancelled','已取消']];
-    for (const [v,label] of stVal) {
+    for (const [v,label] of [['pending','待处理'],['in_progress','进行中'],['completed','已完成'],['cancelled','已取消']]) {
       const o = document.createElement('option'); o.value=v; o.textContent=label;
       if (v===t.status) o.selected=true;
       bn(o, stSel);
     }
     stRow.append(stSel);
     b.append(stRow);
-
-    md.append(b);
-    const f = ce('div', 'display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--ms-border);');
-    bn(btn('取消', null, () => ov.remove()), f);
-    bn(btn('保存', 'primary', async () => {
+    m.setBody(b);
+    m.setFooter(`<button class="ms-btn ms-btn-sm" id="tp-edit-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary ms-btn-sm" id="tp-edit-save">保存</button>`);
+    m.open();
+    m.el.querySelector('#tp-edit-cancel').onclick = () => m.close();
+    m.el.querySelector('#tp-edit-save').onclick = async () => {
       const d = {
         title: _q('#e-title')?.value?.trim() || t.title,
         dueDate: _q('#e-due')?.value?.trim() || null,
@@ -291,33 +268,29 @@ export class TopicBoard {
       };
       try {
         await this._topicRepo().update(t.id, d);
-        ov.remove();
+        m.close();
         await this._loadTopics();
         this.render(this._container);
       } catch(e) { console.error('更新选题失败', e); }
-    }), f);
-    md.append(f);
-    ov.append(md);
-    document.body.append(ov);
+    };
   }
 
   async _deleteTopic(t) {
-    const ov = _ovl();
-    const md = _modal('width:360px;');
-    const b = ce('div', 'padding:20px 18px;text-align:center;');
-    b.innerHTML = `<div style="font-size:16px;margin-bottom:12px;">确认删除选题？</div><div style="font-size:12px;color:var(--ms-text-secondary);">「${t.title}」</div>`;
-    md.append(b);
-    const f = ce('div', 'display:flex;justify-content:center;gap:8px;padding:12px 18px;border-top:1px solid var(--ms-border);');
-    bn(btn('取消', null, () => ov.remove()), f);
-    const db = ce('button', 'padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;', '确认删除');
-    db.onclick = async () => {
-      try { await this._topicRepo().delete(t.id); ov.remove(); await this._loadTopics(); this.render(this._container); }
+    const m = new Modal({ size: 'sm' });
+    m.setBody(`<div style="padding:20px 18px;text-align:center;">
+      <div style="font-size:16px;margin-bottom:12px;">确认删除选题？</div>
+      <div style="font-size:12px;color:var(--ms-text-secondary);">「${t.title}」</div>
+    </div>`);
+    m.setFooter(`<div style="display:flex;justify-content:center;gap:8px;">
+      <button class="ms-btn ms-btn-sm" id="topic-del-cancel">取消</button>
+      <button class="ms-btn ms-btn-sm" id="topic-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+    </div>`);
+    m.open();
+    m.el.querySelector('#topic-del-cancel').onclick = () => m.close();
+    m.el.querySelector('#topic-del-confirm').onclick = async () => {
+      try { await this._topicRepo().delete(t.id); m.close(); await this._loadTopics(); this.render(this._container); }
       catch(e) { console.error('删除选题失败', e); }
     };
-    bn(db, f);
-    md.append(f);
-    ov.append(md);
-    document.body.append(ov);
   }
 
   _d(iso) {
@@ -347,21 +320,6 @@ function btn(label, kind, onClick, title) {
   el.className = `ms-btn${kind==='primary'?' ms-btn-primary':''} ms-btn-sm`;
   el.onclick = onClick;
   return el;
-}
-function _ovl() {
-  const el = ce('div', 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:99998;');
-  el.onclick = (e) => { if (e.target===el) el.remove(); };
-  return el;
-}
-function _modal(w) {
-  return ce('div', `background:var(--ms-bg-card);border:1px solid var(--ms-border);border-radius:var(--ms-radius);box-shadow:var(--ms-shadow-lg);min-width:400px;max-width:600px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;`+w);
-}
-function _hdr(txt, onClose) {
-  const h = ce('div', 'display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--ms-border);font-weight:600;font-size:14px;');
-  h.innerHTML = `<span>${txt}</span>`;
-  const c = btn('✕', null, onClose);
-  bn(c, h);
-  return h;
 }
 function _fld(label, id, ph, val) {
   const r = ce('div', 'margin-bottom:14px;');

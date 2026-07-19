@@ -1,8 +1,9 @@
 import { empty } from '../../framework/utils/dom.js';
 import { formatDateTime } from '../../framework/utils/format.js';
-import { taskRepo, repo } from '../data/index.js';
+import { taskRepo, repo, templateRepo } from '../data/index.js';
 import { TaskDetail } from './TaskDetail.js';
 import { AgentHandler } from '../agent/index.js';
+import { Modal } from '../../framework/ui/Modal.js';
 
 const TYPE_LABELS = { media: '素材', copywriting: '文案' };
 const MODE_LABELS = { manual: '手工', agent: 'Agent' };
@@ -173,29 +174,121 @@ export class TasksView {
   }
 
   _showCreateForm() {
-    const overlay = document.createElement('div');
-    overlay.className = 'ms-task-modal-overlay';
-    const modal = document.createElement('div');
-    modal.className = 'ms-task-modal';
+    const modal = new Modal({ title: '新建任务', size: 'md' });
+    modal.setBody(`
+      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
+        <label class="ms-form-label">关联选题 *</label>
+        <select class="ms-select" id="media-studio-task-create-topic"><option value="">加载中...</option></select>
+      </div>
+      <div class="ms-form-row">
+        <label class="ms-form-label">任务类型</label>
+        <select class="ms-select" style="flex:1" id="tv-type">
+          <option value="media">素材任务</option>
+          <option value="copywriting">文案任务</option>
+        </select>
+      </div>
+      <div class="ms-form-row">
+        <label class="ms-form-label">任务模式</label>
+        <select class="ms-select" style="flex:1" id="tv-mode">
+          <option value="manual">手工</option>
+          <option value="agent">Agent</option>
+        </select>
+      </div>
+      <div class="ms-form-row" style="position:relative">
+        <button class="ms-btn ms-btn-sm" id="media-studio-template-selector-btn" type="button">📋 选择模板</button>
+        <div class="ms-template-selector-panel" id="media-studio-template-selector-panel" style="display:none;position:absolute;top:100%;left:0;z-index:1000;min-width:280px;max-height:300px;overflow-y:auto;background:var(--bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
+          <div class="ms-template-selector-list" id="media-studio-template-selector-list" style="padding:8px"></div>
+          <div class="ms-template-selector-clear" id="media-studio-template-selector-clear" style="padding:8px 12px;border-top:1px solid var(--border,#333);color:var(--text-secondary,#a0a0a0);cursor:pointer;font-size:12px">不使用模板</div>
+        </div>
+      </div>
+      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
+        <label class="ms-form-label">创作简报</label>
+        <textarea class="ms-form-textarea" id="tv-prompt" placeholder="输入任务简报内容..."></textarea>
+      </div>
+    `);
+    modal.setFooter(`
+      <button class="ms-btn" id="tv-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary" id="tv-submit">创建</button>
+    `);
+    modal.open();
 
-    const title = document.createElement('h3');
-    title.textContent = '新建任务';
-    modal.appendChild(title);
+    modal.el.querySelector('#tv-cancel').onclick = () => modal.close();
+    modal.el.querySelector('#tv-prompt').focus();
 
-    const topicRow = document.createElement('div');
-    topicRow.className = 'ms-form-row';
-    topicRow.style.flexDirection = 'column';
-    topicRow.style.alignItems = 'stretch';
-    const topicLabel = document.createElement('label');
-    topicLabel.className = 'ms-form-label';
-    topicLabel.textContent = '关联选题 *';
-    topicRow.appendChild(topicLabel);
-    const topicSelect = document.createElement('select');
-    topicSelect.className = 'ms-select';
-    topicSelect.id = 'media-studio-task-create-topic';
-    topicSelect.innerHTML = '<option value="">加载中...</option>';
-    topicRow.appendChild(topicSelect);
-    modal.appendChild(topicRow);
+    const templateBtn = modal.el.querySelector('#media-studio-template-selector-btn');
+    const templatePanel = modal.el.querySelector('#media-studio-template-selector-panel');
+    const templateList = modal.el.querySelector('#media-studio-template-selector-list');
+    const templateClear = modal.el.querySelector('#media-studio-template-selector-clear');
+    const promptTextarea = modal.el.querySelector('#tv-prompt');
+    const _tmplBtnInitText = templateBtn.textContent;
+
+    const _closeTemplatePanel = () => { templatePanel.style.display = 'none'; };
+
+    const _loadTemplates = async () => {
+      if (templateList.dataset.loaded === '1') return;
+      templateList.innerHTML = '<div class="ms-template-selector-loading" style="padding:8px;color:var(--text-secondary,#a0a0a0);font-size:12px">加载模板中...</div>';
+      try {
+        const tplRepo = await templateRepo(this.api, this._sr);
+        const result = await tplRepo.find({ filter: { type: 'brief' }, sort: '-createdAt' });
+        const templates = result.records || [];
+        templateList.innerHTML = '';
+        if (templates.length === 0) {
+          templateList.innerHTML = '<div class="ms-template-selector-empty" style="padding:8px;color:var(--text-secondary,#a0a0a0);font-size:12px">暂无模板</div>';
+        } else {
+          for (const tpl of templates) {
+            const item = document.createElement('div');
+            item.className = 'ms-template-selector-item';
+            item.style.cssText = 'padding:8px 12px;cursor:pointer;border-radius:2px';
+            item.addEventListener('mouseenter', () => { item.style.background = 'var(--hover,#ffffff0a)'; });
+            item.addEventListener('mouseleave', () => { item.style.background = ''; });
+            item.addEventListener('click', () => {
+              promptTextarea.value = tpl.content || '';
+              templateBtn.textContent = '📋 ' + tpl.name;
+              _closeTemplatePanel();
+            });
+            const nameEl = document.createElement('div');
+            nameEl.style.cssText = 'font-size:13px;font-weight:500;color:var(--text,#e0e0e0)';
+            nameEl.textContent = tpl.name;
+            item.appendChild(nameEl);
+            if (tpl.description) {
+              const descEl = document.createElement('div');
+              descEl.style.cssText = 'font-size:11px;color:var(--text-secondary,#a0a0a0);margin-top:2px';
+              descEl.textContent = tpl.description;
+              item.appendChild(descEl);
+            }
+            templateList.appendChild(item);
+          }
+        }
+        templateList.dataset.loaded = '1';
+      } catch (e) {
+        templateList.innerHTML = '<div class="ms-template-selector-error" style="padding:8px;color:var(--danger,#e74c3c);font-size:12px">加载失败</div>';
+      }
+    };
+
+    templateBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (templatePanel.style.display === 'block') {
+        _closeTemplatePanel();
+        return;
+      }
+      _loadTemplates();
+      templatePanel.style.display = 'block';
+    });
+
+    templateClear.addEventListener('click', () => {
+      promptTextarea.value = '';
+      templateBtn.textContent = _tmplBtnInitText;
+      _closeTemplatePanel();
+    });
+
+    const _onDocClickClose = (e) => {
+      if (!templatePanel.contains(e.target) && e.target !== templateBtn) {
+        _closeTemplatePanel();
+      }
+    };
+    document.addEventListener('click', _onDocClickClose);
+
+    const topicSelect = modal.el.querySelector('#media-studio-task-create-topic');
     (async () => {
       try {
         const topics = await repo(this.api, this._sr, 'topics').find({ sort: '-createdAt' });
@@ -212,74 +305,21 @@ export class TasksView {
       }
     })();
 
-    const typeRow = document.createElement('div');
-    typeRow.className = 'ms-form-row';
-    const typeLabel = document.createElement('label');
-    typeLabel.className = 'ms-form-label';
-    typeLabel.textContent = '任务类型';
-    typeRow.appendChild(typeLabel);
-    const typeSelect = document.createElement('select');
-    typeSelect.className = 'ms-select';
-    typeSelect.style.flex = '1';
-    for (const [v, label] of [['media', '素材任务'], ['copywriting', '文案任务']]) {
-      const el = document.createElement('option');
-      el.value = v; el.textContent = label; typeSelect.appendChild(el);
-    }
-    typeRow.appendChild(typeSelect);
-    modal.appendChild(typeRow);
-
-    const modeRow = document.createElement('div');
-    modeRow.className = 'ms-form-row';
-    const modeLabel = document.createElement('label');
-    modeLabel.className = 'ms-form-label';
-    modeLabel.textContent = '任务模式';
-    modeRow.appendChild(modeLabel);
-    const modeSelect = document.createElement('select');
-    modeSelect.className = 'ms-select';
-    modeSelect.style.flex = '1';
-    for (const [v, label] of [['manual', '手工'], ['agent', 'Agent']]) {
-      const el = document.createElement('option');
-      el.value = v; el.textContent = label; modeSelect.appendChild(el);
-    }
-    modeRow.appendChild(modeSelect);
-    modal.appendChild(modeRow);
-
-    const promptRow = document.createElement('div');
-    promptRow.className = 'ms-form-row';
-    promptRow.style.flexDirection = 'column';
-    promptRow.style.alignItems = 'stretch';
-    const promptLabel = document.createElement('label');
-    promptLabel.className = 'ms-form-label';
-    promptLabel.textContent = '创作简报';
-    promptRow.appendChild(promptLabel);
-    const promptTextarea = document.createElement('textarea');
-    promptTextarea.className = 'ms-form-textarea';
-    promptTextarea.placeholder = '输入任务简报内容...';
-    promptRow.appendChild(promptTextarea);
-    modal.appendChild(promptRow);
-
-    const actions = document.createElement('div');
-    actions.className = 'ms-task-modal-actions';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'ms-btn';
-    cancelBtn.textContent = '取消';
-    cancelBtn.addEventListener('click', () => overlay.remove());
-    actions.appendChild(cancelBtn);
-
-    const submitBtn = document.createElement('button');
-    submitBtn.className = 'ms-btn ms-btn-primary';
-    submitBtn.textContent = '创建';
-    submitBtn.addEventListener('click', async () => {
+    modal.el.querySelector('#tv-submit').addEventListener('click', async () => {
+      const submitBtn = modal.el.querySelector('#tv-submit');
       submitBtn.disabled = true;
       submitBtn.textContent = '创建中...';
       try {
-        const topicId = document.getElementById('media-studio-task-create-topic')?.value || '';
+        const topicId = topicSelect.value || '';
         if (!topicId) {
           alert('请选择关联选题');
           submitBtn.disabled = false;
           submitBtn.textContent = '创建';
           return;
         }
+        const typeSelect = modal.el.querySelector('#tv-type');
+        const modeSelect = modal.el.querySelector('#tv-mode');
+        const promptTextarea = modal.el.querySelector('#tv-prompt');
         const record = await this._ts().create({
           topicId: topicId,
           taskType: typeSelect.value,
@@ -288,7 +328,7 @@ export class TasksView {
           title: promptTextarea.value.slice(0, 80) || '新建任务',
           status: 'pending'
         });
-        overlay.remove();
+        modal.close();
         if (record.mode === 'agent') {
           this._agentHandler.submitTask(record).catch(err => {
             console.error('[TasksView] Agent 任务提交失败:', err);
@@ -301,13 +341,6 @@ export class TasksView {
         alert('创建失败: ' + e.message);
       }
     });
-    actions.appendChild(submitBtn);
-
-    modal.appendChild(actions);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    promptTextarea.focus();
   }
 
 }
