@@ -28,7 +28,7 @@ export const MANIFEST = {
   /** 菜单组结构：按组组织视图 */
   menuGroups: [
     { id: 'planning', label: '选题策划', iconKey: 'planning', items: ['ideas', 'topics', 'themes'] },
-    { id: 'production', label: '生产流程', iconKey: 'production', items: ['kanban', 'tasks', 'assets', 'templates'] },
+    { id: 'production', label: '内容创作', iconKey: 'production', items: ['kanban', 'tasks', 'assets', 'templates'] },
     { id: 'publish', label: '发布运营', iconKey: 'publish', items: ['publish', 'calendar', 'platforms'] },
     { id: 'system', label: '系统管理', iconKey: 'operations', items: ['database'] },
   ],
