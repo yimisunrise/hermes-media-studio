@@ -11,7 +11,8 @@ const ENDPOINT_MAP = {
   createDir: '/api/file/create-dir',
   delete: '/api/file/delete',
   rename: '/api/file/rename',
-  move: '/api/file/move'
+  move: '/api/file/move',
+  workspaceUpload: '/api/workspace/upload'
 };
 
 class WorkspaceAPI {
@@ -323,6 +324,148 @@ class WorkspaceAPI {
       // Network errors (TypeError) — refresh won't help, return false immediately
       return false;
     }
+  }
+
+  // ── Binary File Support ─────────────────────────────────────────
+
+  /** Convert ArrayBuffer to base64 string (chunked for large buffers) */
+  _arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  }
+
+  /**
+   * Upload a file as raw binary to the workspace.
+   *
+   * Uses POST /api/workspace/upload with multipart/form-data (FormData).
+   * The server writes the file as raw bytes on disk — readable by the OS
+   * file manager. The directory is created automatically.
+   *
+   * The relPath must be workspace-relative: e.g. "assets/2025-07/id-name.ext".
+   * The directory portion ("assets/2025-07/") is sent as the upload path,
+   * and the file is sent with the given filename.
+   *
+   * @param {string} relPath - Relative path in workspace (e.g. "assets/.../file.ext")
+   * @param {File|Blob} file - File or Blob object to upload
+   * @returns {Promise<object>} Upload result with { name, path, size, mime }
+   */
+  async writeBinary(relPath, file) {
+    const dirPath = relPath.indexOf('/') !== -1
+      ? relPath.substring(0, relPath.lastIndexOf('/'))
+      : '';
+    const fileName = relPath.substring(relPath.lastIndexOf('/') + 1);
+    const uploadPath = this._buildPath(dirPath);
+
+    const form = new FormData();
+    form.append('session_id', this.sessionId);
+    form.append('file', file, fileName);
+    form.append('path', uploadPath);
+
+    const res = await fetch(ENDPOINT_MAP.workspaceUpload, {
+      method: 'POST',
+      headers: {},
+      body: form
+    });
+
+    if (!res.ok) {
+      throw new Error(`writeBinary failed: ${res.status} for ${relPath}`);
+    }
+
+    return res.json().catch(() => ({}));
+  }
+
+  /**
+   * Download a file as raw binary through the browser's native download.
+   *
+   * Reads the file via readAsArrayBuffer (which correctly decodes base64),
+   * creates a Blob with the correct MIME type, and triggers a browser
+   * download with the original filename. This ensures the downloaded file
+   * is valid binary — even when the server stores it as base64 text.
+   *
+   * @param {string} relPath - Relative file path in workspace
+   * @param {string} fileName - Original filename for the download dialog
+   * @param {string} mimeType - MIME type (e.g. 'image/jpeg', 'video/mp4')
+   */
+  async downloadAsFile(relPath, fileName, mimeType) {
+    const arrayBuffer = await this.readAsArrayBuffer(relPath);
+    const blob = new Blob([arrayBuffer], { type: mimeType || 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'download';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+  }
+
+  /**
+   * Read file content, handling both JSON responses (text/base64 content)
+   * and raw binary responses.
+   */
+  async _readFileContent(path) {
+    const fullPath = this._buildPath(path);
+    const url = `/api/file/raw?session_id=${encodeURIComponent(this.sessionId)}&path=${encodeURIComponent(fullPath)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`read failed: ${res.status} for ${fullPath}`);
+    const buffer = await res.arrayBuffer();
+    return this._arrayBufferToBase64(buffer);
+  }
+
+  /**
+   * Read file content and return as a data URL suitable for <img src>.
+   * Handles legacy (data: prefix), current (raw base64 in JSON), and
+   * raw binary responses from the server.
+   */
+  async readAsDataURL(filePath, mimeType) {
+    const content = await this._readFileContent(filePath);
+    if (!content) {
+      return '';
+    }
+    if (content.startsWith('data:')) {
+      return content; // Legacy: content is already a full data URL
+    }
+    // content is raw base64 → wrap in data URL
+    return `data:${mimeType || 'image/png'};base64,${content}`;
+  }
+
+  /**
+   * Read file content as ArrayBuffer.
+   * Handles legacy (data: URL), current (raw base64), and
+   * raw binary responses from the server.
+   */
+  async readAsArrayBuffer(filePath) {
+    const content = await this._readFileContent(filePath);
+    if (!content) return new ArrayBuffer(0);
+    const base64 = content.startsWith('data:')
+      ? content.split(',').slice(1).join(',')  // Legacy: strip data: prefix
+      : content;                                 // Current: raw base64
+    const binary = atob(base64);
+    const buffer = new ArrayBuffer(binary.length);
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return buffer;
+  }
+
+  /**
+   * Get a temporary object URL for file preview/download.
+   * Creates a Blob URL that can be used in <img src> or window.open().
+   * Caller should revoke the URL when done via URL.revokeObjectURL().
+   */
+  async getDownloadUrl(filePath, mimeType) {
+    const arrayBuffer = await this.readAsArrayBuffer(filePath);
+    const blob = new Blob([arrayBuffer], { type: mimeType || 'application/octet-stream' });
+    return URL.createObjectURL(blob);
   }
 
   // ── Platform Config ──────────────────────────────────────────────
