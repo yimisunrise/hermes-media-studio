@@ -104,13 +104,22 @@ class SidebarManager {
     if (!tab) return;
     if (tab.dataset.panel === 'media-studio') return;
     if (this._active) {
-      this._deactivate();
+      this._deactivate();                       // 先清理 UI
+      e.stopPropagation();                      // 阻止宿主 inline onclick 双重触发
+      const panel = tab.dataset.panel;
+      if (panel && typeof window.switchPanel === 'function') {
+        window.switchPanel(panel);              // 自行切换，无 fromRailClick
+      }
     }
   }
 
   _onRailBtnClick() {
     if (this._active) {
       this._deactivate();
+      // 调用方负责恢复宿主面板
+      if (this._prevHostPanel && typeof window.switchPanel === 'function') {
+        window.switchPanel(this._prevHostPanel);
+      }
     } else {
       this._activate();
     }
@@ -197,16 +206,6 @@ class SidebarManager {
     const app = document.getElementById('media-studio-app');
     if (app) {
       app.style.display = 'none';
-    }
-
-    // ── Restore host panel state ──
-    if (this._prevHostPanel) {
-      const tab = document.querySelector(`.rail .nav-tab[data-panel="${this._prevHostPanel}"]`);
-      if (tab) tab.classList.add(SELECTORS.activeClass);
-      if (typeof window.switchPanel === 'function') {
-        window.switchPanel(this._prevHostPanel);
-      }
-      this._prevHostPanel = null;
     }
 
     // ── Restore titlebar ──
