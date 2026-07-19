@@ -32,4 +32,29 @@ export function contentRepo(api, schemaRegistry) {
   return repo(api, schemaRegistry, 'contents');
 }
 
+/** @returns {Promise<import('../../framework/core/DataRepository.js').DataRepository>} */
+export function templateRepo(api, schemaRegistry) {
+  return repo(api, schemaRegistry, 'templates');
+}
+
+/** @returns {Promise<import('../../framework/core/DataRepository.js').DataRepository>} */
+export function packageRepo(api, schemaRegistry) {
+  return repo(api, schemaRegistry, 'packages');
+}
+
+/** @returns {Promise<import('../../framework/core/DataRepository.js').DataRepository>} */
+export function platformRepo(api, schemaRegistry) {
+  return repo(api, schemaRegistry, 'platforms');
+}
+
+/** @returns {Promise<import('../../framework/core/DataRepository.js').DataRepository>} */
+export function scheduleRepo(api, schemaRegistry) {
+  return repo(api, schemaRegistry, 'schedules');
+}
+
+/** @returns {Promise<import('../../framework/core/DataRepository.js').DataRepository>} */
+export function publishLogRepo(api, schemaRegistry) {
+  return repo(api, schemaRegistry, 'publish-logs');
+}
+
 export default repo;

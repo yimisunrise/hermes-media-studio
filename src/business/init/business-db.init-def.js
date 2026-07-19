@@ -15,6 +15,11 @@ async function _ensureAgentDirs(api) {
   } catch {}
 }
 
+const PACKAGE_STATUSES = ['draft', 'scheduled', 'publishing', 'published', 'partially_published', 'failed'];
+const SCHEDULE_STATUSES = ['pending', 'publishing', 'completed', 'failed', 'cancelled'];
+const LOG_STATUSES = ['scheduled', 'publishing', 'success', 'failed'];
+const PLATFORM_TYPES = ['xiaohongshu', 'douyin', 'bilibili', 'weixin', 'weibo', 'other'];
+
 const TABLE_DEFS = [
   {
     id: 'themes', label: '主题',
@@ -85,6 +90,9 @@ const TABLE_DEFS = [
       { id: 'type', type: 'enum', label: '素材类型', enum: ['image', 'video', 'audio'] },
       { id: 'url', type: 'string', label: '访问 URL' },
       { id: 'filePath', type: 'string', label: '文件路径' },
+      { id: 'fileName', type: 'string', label: '原始文件名' },
+      { id: 'mimeType', type: 'string', label: 'MIME 类型' },
+      { id: 'fileSize', type: 'integer', label: '文件大小(字节)' },
       { id: 'thumbnail', type: 'string', label: '缩略图 URL' },
       { id: 'metadata', type: 'json', label: '扩展元数据' },
       { id: 'status', type: 'enum', label: '状态', enum: ['generating', 'completed', 'failed'], defaultValue: 'generating' },
@@ -107,12 +115,86 @@ const TABLE_DEFS = [
       { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
     ],
     shardType: 'none'
+  },
+  {
+    id: 'templates', label: '模板',
+    fields: [
+      { id: 'id', type: 'uuid', isId: true },
+      { id: 'name', type: 'string', label: '模板名称', required: true },
+      { id: 'type', type: 'enum', label: '模板类型', enum: ['brief', 'content'], defaultValue: 'brief' },
+      { id: 'content', type: 'text', label: '模板内容(Markdown)' },
+      { id: 'description', type: 'text', label: '模板说明' },
+      { id: 'tags', type: 'array', label: '标签', items: { type: 'string' } },
+      { id: 'createdAt', type: 'datetime', autoSet: 'created' },
+      { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
+    ],
+    shardType: 'none'
+  },
+  {
+    id: 'packages', label: '发布包',
+    fields: [
+      { id: 'id', type: 'uuid', isId: true },
+      { id: 'contentId', type: 'reference', label: '关联内容', ref: { database: 'business', table: 'contents' } },
+      { id: 'title', type: 'string', label: '发布标题' },
+      { id: 'platformIds', type: 'array', label: '目标平台', items: { type: 'reference', ref: { database: 'business', table: 'platforms' } } },
+      { id: 'scheduledAt', type: 'datetime', label: '排期时间' },
+      { id: 'status', type: 'enum', label: '状态', enum: PACKAGE_STATUSES, defaultValue: 'draft' },
+      { id: 'createdAt', type: 'datetime', autoSet: 'created' },
+      { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
+    ],
+    shardType: 'none'
+  },
+  {
+    id: 'platforms', label: '平台',
+    fields: [
+      { id: 'id', type: 'uuid', isId: true },
+      { id: 'name', type: 'string', label: '平台名称', required: true },
+      { id: 'slug', type: 'string', label: '标识符' },
+      { id: 'type', type: 'enum', label: '平台类型', enum: PLATFORM_TYPES },
+      { id: 'publishTypes', type: 'array', label: '支持发布类型', items: { type: 'string' } },
+      { id: 'enabled', type: 'boolean', label: '是否启用', defaultValue: true },
+      { id: 'publishConfig', type: 'json', label: '发布配置' },
+      { id: 'apiConfig', type: 'json', label: 'API 配置' },
+      { id: 'createdAt', type: 'datetime', autoSet: 'created' },
+      { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
+    ],
+    shardType: 'none'
+  },
+  {
+    id: 'schedules', label: '排期',
+    fields: [
+      { id: 'id', type: 'uuid', isId: true },
+      { id: 'packageId', type: 'reference', label: '关联发布包', ref: { database: 'business', table: 'packages' } },
+      { id: 'platformId', type: 'reference', label: '发布平台', ref: { database: 'business', table: 'platforms' } },
+      { id: 'scheduledAt', type: 'datetime', label: '排期时间', required: true },
+      { id: 'status', type: 'enum', label: '状态', enum: SCHEDULE_STATUSES, defaultValue: 'pending' },
+      { id: 'createdAt', type: 'datetime', autoSet: 'created' },
+      { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
+    ],
+    shardType: 'monthly'
+  },
+  {
+    id: 'publish-logs', label: '发布日志',
+    fields: [
+      { id: 'id', type: 'uuid', isId: true },
+      { id: 'packageId', type: 'reference', label: '关联发布包', ref: { database: 'business', table: 'packages' } },
+      { id: 'platformId', type: 'reference', label: '发布平台', ref: { database: 'business', table: 'platforms' } },
+      { id: 'scheduledAt', type: 'datetime', label: '计划发布时间' },
+      { id: 'publishedAt', type: 'datetime', label: '实际发布时间' },
+      { id: 'url', type: 'string', label: '发布链接' },
+      { id: 'status', type: 'enum', label: '状态', enum: LOG_STATUSES, defaultValue: 'scheduled' },
+      { id: 'error', type: 'text', label: '错误信息' },
+      { id: 'retryCount', type: 'integer', label: '重试次数', defaultValue: 0 },
+      { id: 'createdAt', type: 'datetime', autoSet: 'created' },
+      { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
+    ],
+    shardType: 'monthly'
   }
 ];
 
 export const initDef = {
   name: 'business-db',
-  version: '1.2.0',
+  version: '1.4.0',
   label: '创建业务数据库',
   required: true,
   dependsOn: ['schema-registry'],
@@ -128,7 +210,12 @@ export const initDef = {
 
     for (const def of TABLE_DEFS) {
       onProgress(`注册${def.label}表...`);
-      await _ensureTable(schemaRegistry, db, def);
+      const existing = await schemaRegistry.getTable(db, def.id);
+      if (existing) {
+        await schemaRegistry.updateTable(db, def.id, { fields: def.fields });
+      } else {
+        await _ensureTable(schemaRegistry, db, def);
+      }
     }
 
     onProgress('准备 Agent 通信目录...');
