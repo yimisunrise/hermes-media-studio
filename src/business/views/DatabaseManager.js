@@ -1,6 +1,7 @@
 import { empty } from '../../framework/utils/dom.js';
 import { formatDateTime } from '../../framework/utils/format.js';
 import { DataRepository } from '../../framework/core/DataRepository.js';
+import { Modal } from '../../framework/ui/Modal.js';
 
 export class DatabaseManager {
   constructor({ api, state, schemaRegistry }) {
@@ -388,52 +389,32 @@ export class DatabaseManager {
 
   _showDbForm(existing) {
     const isNew = !existing;
-    const overlay = document.createElement('div');
-    overlay.className = 'ms-db-form-overlay';
-
-    const form = document.createElement('div');
-    form.className = 'ms-db-form';
-
-    form.innerHTML = `
-      <div class="ms-db-form-header">
-        <span>${isNew ? '新建数据库' : '编辑数据库'}</span>
-        <button class="ms-btn-icon ms-db-form-close">✕</button>
+    const modal = new Modal({ title: isNew ? '新建数据库' : '编辑数据库', size: 'md' });
+    modal.setBody(`
+      <div class="ms-db-form-field">
+        <label class="ms-db-form-label">数据库 ID</label>
+        <input class="ms-form-input" id="ms-db-form-db-id" type="text"
+          value="${isNew ? '' : this._esc(existing.id)}"
+          ${isNew ? '' : 'disabled'}
+          placeholder="英文、数字、下划线" />
       </div>
-      <div class="ms-db-form-body">
-        <div class="ms-db-form-field">
-          <label class="ms-db-form-label">数据库 ID</label>
-          <input class="ms-form-input" id="ms-db-form-db-id" type="text"
-            value="${isNew ? '' : this._esc(existing.id)}"
-            ${isNew ? '' : 'disabled'}
-            placeholder="英文、数字、下划线" />
-        </div>
-        <div class="ms-db-form-field">
-          <label class="ms-db-form-label">数据库名称</label>
-          <input class="ms-form-input" id="ms-db-form-db-label" type="text"
-            value="${isNew ? '' : this._esc(existing.label || '')}"
-            placeholder="例如：主库" />
-        </div>
+      <div class="ms-db-form-field">
+        <label class="ms-db-form-label">数据库名称</label>
+        <input class="ms-form-input" id="ms-db-form-db-label" type="text"
+          value="${isNew ? '' : this._esc(existing.label || '')}"
+          placeholder="例如：主库" />
       </div>
-      <div class="ms-db-form-footer">
-        <button class="ms-btn ms-db-form-cancel">取消</button>
-        <button class="ms-btn ms-btn-primary ms-db-form-submit">保存</button>
-      </div>
-    `;
+    `);
+    modal.setFooter(`
+      <button class="ms-btn" id="ms-db-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary" id="ms-db-submit">保存</button>
+    `);
+    modal.open();
 
-    overlay.appendChild(form);
-    document.body.appendChild(overlay);
-
-    const close = () => overlay.remove();
-    form.querySelector('.ms-db-form-close').addEventListener('click', close);
-    form.querySelector('.ms-db-form-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-
-    const firstInput = form.querySelector('input:not([disabled])');
-    if (firstInput) setTimeout(() => firstInput.focus(), 50);
-
-    form.querySelector('.ms-db-form-submit').addEventListener('click', async () => {
-      const idInput = form.querySelector('#ms-db-form-db-id');
-      const labelInput = form.querySelector('#ms-db-form-db-label');
+    modal.el.querySelector('#ms-db-cancel').onclick = () => modal.close();
+    modal.el.querySelector('#ms-db-submit').onclick = async () => {
+      const idInput = modal.el.querySelector('#ms-db-form-db-id');
+      const labelInput = modal.el.querySelector('#ms-db-form-db-label');
       const id = (idInput.value || '').trim();
       const label = (labelInput.value || '').trim();
 
@@ -454,13 +435,16 @@ export class DatabaseManager {
         } else {
           await this.schemaRegistry.updateDatabase(existing.id, { label });
         }
-        overlay.remove();
+        modal.close();
         await this._loadDatabases();
         this._navigateTo(isNew ? id : existing.id);
       } catch (e) {
         alert('操作失败: ' + e.message);
       }
-    });
+    };
+
+    const firstInput = modal.el.querySelector('input:not([disabled])');
+    if (firstInput) setTimeout(() => firstInput.focus(), 50);
   }
 
   async _showTableForm(db, tableId) {
@@ -470,12 +454,7 @@ export class DatabaseManager {
     }
     const isNew = !existing;
 
-    const overlay = document.createElement('div');
-    overlay.className = 'ms-db-form-overlay';
-
-    const form = document.createElement('div');
-    form.className = 'ms-db-form';
-    form.style.maxWidth = '700px';
+    const modal = new Modal({ title: (isNew ? '新建表' : '编辑表') + ' — ' + this._esc(db), maxWidth: '700px' });
 
     const existingFields = existing ? (existing.fields || []) : [];
 
@@ -497,52 +476,40 @@ export class DatabaseManager {
       fieldRowsHtml += rowFor({ id: '', label: '', type: 'string' }, 0);
     }
 
-    form.innerHTML = `
-      <div class="ms-db-form-header">
-        <span>${isNew ? '新建表' : '编辑表'} — ${this._esc(db)}</span>
-        <button class="ms-btn-icon ms-db-form-close">✕</button>
+    modal.setBody(`
+      <div class="ms-db-form-field">
+        <label class="ms-db-form-label">表 ID</label>
+        <input class="ms-form-input" id="ms-db-form-table-id" type="text"
+          value="${isNew ? '' : this._esc(existing.id)}"
+          ${isNew ? '' : 'disabled'}
+          placeholder="英文、数字、下划线" />
       </div>
-      <div class="ms-db-form-body">
-        <div class="ms-db-form-field">
-          <label class="ms-db-form-label">表 ID</label>
-          <input class="ms-form-input" id="ms-db-form-table-id" type="text"
-            value="${isNew ? '' : this._esc(existing.id)}"
-            ${isNew ? '' : 'disabled'}
-            placeholder="英文、数字、下划线" />
-        </div>
-        <div class="ms-db-form-field">
-          <label class="ms-db-form-label">表名称</label>
-          <input class="ms-form-input" id="ms-db-form-table-label" type="text"
-            value="${isNew ? '' : this._esc(existing.label || '')}"
-            placeholder="例如：文章" />
-        </div>
-        <div class="ms-db-form-field">
-          <label class="ms-db-form-label">字段定义</label>
-          <div class="ms-db-field-list" id="ms-db-field-list">
-            ${fieldRowsHtml}
-          </div>
-          <button class="ms-btn ms-btn-sm" id="ms-db-field-add" style="margin-top:6px">+ 添加字段</button>
-        </div>
+      <div class="ms-db-form-field">
+        <label class="ms-db-form-label">表名称</label>
+        <input class="ms-form-input" id="ms-db-form-table-label" type="text"
+          value="${isNew ? '' : this._esc(existing.label || '')}"
+          placeholder="例如：文章" />
       </div>
-      <div class="ms-db-form-footer">
-        <button class="ms-btn ms-db-form-cancel">取消</button>
-        <button class="ms-btn ms-btn-primary ms-db-form-submit">保存</button>
+      <div class="ms-db-form-field">
+        <label class="ms-db-form-label">字段定义</label>
+        <div class="ms-db-field-list" id="ms-db-field-list">
+          ${fieldRowsHtml}
+        </div>
+        <button class="ms-btn ms-btn-sm" id="ms-db-field-add" style="margin-top:6px">+ 添加字段</button>
       </div>
-    `;
+    `);
+    modal.setFooter(`
+      <button class="ms-btn" id="ms-db-tbl-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary" id="ms-db-tbl-submit">保存</button>
+    `);
+    modal.open();
 
-    overlay.appendChild(form);
-    document.body.appendChild(overlay);
-
-    const close = () => overlay.remove();
-    form.querySelector('.ms-db-form-close').addEventListener('click', close);
-    form.querySelector('.ms-db-form-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-
-    const firstInput = form.querySelector('input:not([disabled])');
+    modal.el.querySelector('#ms-db-tbl-cancel').onclick = () => modal.close();
+    const firstInput = modal.el.querySelector('input:not([disabled])');
     if (firstInput) setTimeout(() => firstInput.focus(), 50);
 
-    const fieldList = form.querySelector('#ms-db-field-list');
-    form.querySelector('#ms-db-field-add').addEventListener('click', () => {
+    const fieldList = modal.el.querySelector('#ms-db-field-list');
+    modal.el.querySelector('#ms-db-field-add').addEventListener('click', () => {
       const row = document.createElement('div');
       row.className = 'ms-db-form-field-row';
       row.innerHTML = `
@@ -557,16 +524,16 @@ export class DatabaseManager {
       fieldList.appendChild(row);
     });
 
-    form.querySelectorAll('.ms-db-field-remove').forEach(btn => {
+    modal.el.querySelectorAll('.ms-db-field-remove').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const row = e.target.closest('.ms-db-form-field-row');
         if (row) row.remove();
       });
     });
 
-    form.querySelector('.ms-db-form-submit').addEventListener('click', async () => {
-      const idInput = form.querySelector('#ms-db-form-table-id');
-      const labelInput = form.querySelector('#ms-db-form-table-label');
+    modal.el.querySelector('#ms-db-tbl-submit').addEventListener('click', async () => {
+      const idInput = modal.el.querySelector('#ms-db-form-table-id');
+      const labelInput = modal.el.querySelector('#ms-db-form-table-label');
       const tId = (idInput.value || '').trim();
       const tLabel = (labelInput.value || '').trim();
 
@@ -582,7 +549,7 @@ export class DatabaseManager {
       }
 
       const fields = [];
-      form.querySelectorAll('.ms-db-form-field-row').forEach(row => {
+      modal.el.querySelectorAll('.ms-db-form-field-row').forEach(row => {
         const fid = (row.querySelector('.ms-db-field-id').value || '').trim();
         const flabel = (row.querySelector('.ms-db-field-label').value || '').trim();
         const ftype = row.querySelector('.ms-db-field-type').value;
@@ -592,7 +559,7 @@ export class DatabaseManager {
       });
 
       try {
-        overlay.remove();
+        modal.close();
         if (isNew) {
           await this.schemaRegistry.createTable(db, { id: tId, label: tLabel, fields: fields.length ? fields : undefined });
         } else {
@@ -725,14 +692,9 @@ export class DatabaseManager {
   /* ── Record Form Builder (Overlay Modal) ────────────── */
 
   _buildRecordForm(fields, table, existing, onSubmit) {
-    const overlay = document.createElement('div');
-    overlay.className = 'ms-db-form-overlay';
-
-    const form = document.createElement('div');
-    form.className = 'ms-db-form';
+    const modal = new Modal({ title: (existing ? '编辑' : '新建') + '记录 — ' + table, size: 'md' });
 
     let fieldsHtml = '';
-
     (fields.length ? fields : [{ id: 'id', label: 'ID', type: 'string' }]).forEach(f => {
       const val = existing ? existing[f.id] : '';
       fieldsHtml += `
@@ -743,31 +705,17 @@ export class DatabaseManager {
       `;
     });
 
-    form.innerHTML = `
-      <div class="ms-db-form-header">
-        <span>${existing ? '编辑' : '新建'}记录 — ${table}</span>
-        <button class="ms-btn-icon ms-db-form-close">✕</button>
-      </div>
-      <div class="ms-db-form-body">
-        ${fieldsHtml}
-      </div>
-      <div class="ms-db-form-footer">
-        <button class="ms-btn ms-db-form-cancel">取消</button>
-        <button class="ms-btn ms-btn-primary ms-db-form-submit">${existing ? '保存' : '创建'}</button>
-      </div>
-    `;
+    modal.setBody(fieldsHtml);
+    modal.setFooter(`
+      <button class="ms-btn" id="ms-db-rec-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary" id="ms-db-rec-submit">${existing ? '保存' : '创建'}</button>
+    `);
+    modal.open();
 
-    overlay.appendChild(form);
-    document.body.appendChild(overlay);
-
-    const close = () => overlay.remove();
-    form.querySelector('.ms-db-form-close').addEventListener('click', close);
-    form.querySelector('.ms-db-form-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-
-    form.querySelector('.ms-db-form-submit').addEventListener('click', async () => {
+    modal.el.querySelector('#ms-db-rec-cancel').onclick = () => modal.close();
+    modal.el.querySelector('#ms-db-rec-submit').addEventListener('click', async () => {
       const data = {};
-      const inputs = form.querySelectorAll('[name^="edit-"]');
+      const inputs = modal.el.querySelectorAll('[name^="edit-"]');
       inputs.forEach(inp => {
         const field = inp.name.replace('edit-', '');
         if (inp.type === 'checkbox') {
@@ -778,7 +726,7 @@ export class DatabaseManager {
           data[field] = inp.value;
         }
       });
-      overlay.remove();
+      modal.close();
       await onSubmit(data);
     });
   }

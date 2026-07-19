@@ -1,4 +1,5 @@
 import { createElement, empty } from '../../framework/utils/dom.js';
+import { Modal } from '../../framework/ui/Modal.js';
 import { repo } from '../data/index.js';
 
 export class ThemeStrategy {
@@ -134,26 +135,7 @@ export class ThemeStrategy {
     this._editingTheme = theme || null;
     const isEdit = !!theme;
 
-    const overlay = document.createElement('div');
-    overlay.className = 'ms-modal-overlay';
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-    const modal = document.createElement('div');
-    modal.className = 'ms-modal';
-    modal.style.cssText = 'width:480px;';
-
-    const header = document.createElement('div');
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--ms-border);font-weight:600;font-size:14px;';
-    header.innerHTML = `<span>${isEdit ? '编辑主题' : '新增主题'}</span>`;
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'ms-btn ms-btn-sm ms-btn-icon';
-    closeBtn.textContent = '✕';
-    closeBtn.addEventListener('click', () => overlay.remove());
-    header.appendChild(closeBtn);
-    modal.appendChild(header);
-
     const body = document.createElement('div');
-    body.style.padding = '16px 18px';
 
     const nameRow = document.createElement('div');
     nameRow.style.marginBottom = '14px';
@@ -225,17 +207,11 @@ export class ThemeStrategy {
     hint.innerHTML = '💡 主题的「风格描述」会在 Agent 模式下传递给 HermesAgent，作为素材生成时 Prompt 的参考依据。';
     body.appendChild(hint);
 
-    modal.appendChild(body);
-
-    const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--ms-border);';
-
+    const footer = document.createElement('div');
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'ms-btn ms-btn-sm';
     cancelBtn.textContent = '取消';
-    cancelBtn.addEventListener('click', () => overlay.remove());
-    actions.appendChild(cancelBtn);
-
+    footer.appendChild(cancelBtn);
     const saveBtn = document.createElement('button');
     saveBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
     saveBtn.textContent = isEdit ? '保存' : '创建';
@@ -248,13 +224,19 @@ export class ThemeStrategy {
       };
       if (!data.name) { nameInput.focus(); nameInput.style.borderColor = 'var(--ms-danger)'; return; }
       await this._saveTheme(data);
-      overlay.remove();
+      m.close();
     });
-    actions.appendChild(saveBtn);
+    footer.appendChild(saveBtn);
 
-    modal.appendChild(actions);
-    overlay.appendChild(modal);
-    this._container.appendChild(overlay);
+    const m = new Modal({
+      title: isEdit ? '编辑主题' : '新增主题',
+      size: 'md',
+      container: this._container,
+    });
+    m.setBody(body);
+    m.setFooter(footer);
+    m.open();
+    cancelBtn.addEventListener('click', () => m.close());
 
     setTimeout(() => nameInput.focus(), 100);
     colorPreview.style.background = colorInput.value || 'transparent';
@@ -274,28 +256,16 @@ export class ThemeStrategy {
   }
 
   async _deleteTheme(theme) {
-    const overlay = document.createElement('div');
-    overlay.className = 'ms-modal-overlay';
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-    const modal = document.createElement('div');
-    modal.className = 'ms-modal';
-    modal.style.cssText = 'width:360px;';
-
     const body = document.createElement('div');
     body.style.padding = '20px 18px';
     body.style.textAlign = 'center';
     body.innerHTML = `<div style="font-size:16px;margin-bottom:12px;">确认删除主题「${theme.name}」？</div><div style="font-size:12px;color:var(--ms-text-secondary);">此操作不可撤销。关联此主题的灵感和选题不受影响。</div>`;
-    modal.appendChild(body);
 
-    const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex;justify-content:center;gap:8px;padding:12px 18px;border-top:1px solid var(--ms-border);';
-
+    const footer = document.createElement('div');
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'ms-btn ms-btn-sm';
     cancelBtn.textContent = '取消';
-    cancelBtn.addEventListener('click', () => overlay.remove());
-    actions.appendChild(cancelBtn);
+    footer.appendChild(cancelBtn);
 
     const delBtn = document.createElement('button');
     delBtn.className = 'ms-btn ms-btn-sm';
@@ -304,17 +274,19 @@ export class ThemeStrategy {
     delBtn.addEventListener('click', async () => {
       try {
         await this._themeRepo().delete(theme.id);
-        overlay.remove();
         await this.render(this._container);
       } catch (e) {
         console.error('删除主题失败', e);
       }
+      m.close();
     });
-    actions.appendChild(delBtn);
+    footer.appendChild(delBtn);
 
-    modal.appendChild(actions);
-    overlay.appendChild(modal);
-    this._container.appendChild(overlay);
+    const m = new Modal({ size: 'sm', container: this._container });
+    m.setBody(body);
+    m.setFooter(footer);
+    m.open();
+    cancelBtn.addEventListener('click', () => m.close());
   }
 
   _fmtDate(iso) {
