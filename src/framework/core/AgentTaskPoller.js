@@ -1,3 +1,5 @@
+import { shortId } from '../utils/meta.js';
+
 const AGENT_TASKS_DIR = '.agent-tasks';
 
 function _defaultIndex() {
@@ -51,7 +53,7 @@ export class AgentTaskPoller {
   // ── 任务创建 ──
 
   async createTask(type, briefContent, files = [], taskId) {
-    const uuid = taskId || crypto.randomUUID();
+    const uuid = taskId || shortId();
     const taskDir = `${AGENT_TASKS_DIR}/${uuid}`;
     const filesDir = `${taskDir}/files`;
 

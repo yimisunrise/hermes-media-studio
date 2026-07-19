@@ -1,8 +1,4 @@
-function newId() {
-  return crypto.randomUUID
-    ? crypto.randomUUID()
-    : Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
+import { shortId } from '../utils/meta.js';
 
 function now() {
   return new Date().toISOString();
@@ -143,7 +139,13 @@ export class DataRepository {
     const record = this._applyDefaults({ ...data }, schema);
 
     if (!record.id) {
-      record.id = newId();
+      // 碰撞重试：ID 冲突时等待至下一毫秒重新生成
+      while (true) {
+        record.id = shortId();
+        const existing = await this.get(record.id);
+        if (!existing) break;
+        await new Promise(r => setTimeout(r, 1));
+      }
     }
 
     if (!record.createdAt) record.createdAt = now();

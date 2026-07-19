@@ -1,7 +1,23 @@
+const _BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+/**
+ * 生成 7 位 Base62 编码的毫秒时间戳 ID
+ * 示例: VPWG9dl → VPWG9dm → VPWG9dn...
+ * 时间有序，无需持久化状态，约 2081 年溢出
+ */
+export function shortId() {
+  let n = Date.now();
+  let id = '';
+  for (let i = 0; i < 7; i++) {
+    id = _BASE62[n % 62] + id;
+    n = Math.floor(n / 62);
+  }
+  return id;
+}
+
+/** @deprecated 使用 shortId() 替代 */
 export function uuid() {
-  return crypto.randomUUID
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  return shortId();
 }
 
 export async function readMeta(api, assetPath) {
