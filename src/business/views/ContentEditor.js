@@ -1,5 +1,5 @@
 import { empty, debounce } from '../../framework/utils/dom.js';
-import { contentRepo } from '../data/index.js';
+import { contentRepo, repo } from '../data/index.js';
 
 export class ContentEditor {
   constructor({ api, state, schemaRegistry }) {
@@ -136,6 +136,8 @@ export class ContentEditor {
       newVerBtn.textContent = '创建新版本';
       newVerBtn.addEventListener('click', () => this._createNewVersion());
       toolbar.appendChild(newVerBtn);
+
+      this._renderPublishEntry(toolbar);
     }
 
     if (!this._isReadOnly) {
@@ -277,6 +279,29 @@ export class ContentEditor {
       }
     } catch (e) {
       console.error('创建新版本失败:', e);
+    }
+  }
+
+  async _renderPublishEntry(toolbar) {
+    if (!this._currentContent || this._currentContent.status !== 'finalized') return;
+    try {
+      const pkgRepo = repo(this.api, this._sr, 'packages');
+      const result = await pkgRepo.find({ filter: { contentId: this._currentContent.id } });
+      const count = (result && result.records) ? result.records.length : 0;
+      const btn = document.createElement('button');
+      btn.className = 'ms-btn ms-btn-sm';
+      btn.style.marginLeft = '8px';
+      if (count > 0) {
+        btn.textContent = '查看发布包 (' + count + ')';
+        btn.style.borderColor = 'var(--ms-success,#27ae60)';
+        btn.style.color = 'var(--ms-success,#27ae60)';
+      } else {
+        btn.textContent = '创建发布包';
+      }
+      btn.addEventListener('click', () => { window.location.hash = '#publish'; });
+      toolbar.appendChild(btn);
+    } catch (e) {
+      // ignore
     }
   }
 
