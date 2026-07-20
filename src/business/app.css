@@ -35,7 +35,10 @@
   align-items: center;
 }
 
-.ms-panel-filterbar .ms-select {
+/* 非表单场景下的 select 不占满宽度 */
+.ms-panel-filterbar .ms-select,
+.ms-asset-gallery-filter-bar .ms-select {
+  width: auto;
   min-width: 120px;
 }
 

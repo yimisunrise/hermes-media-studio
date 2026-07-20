@@ -222,16 +222,16 @@ export class TasksView {
         <label class="ms-form-label">关联选题 *</label>
         <select class="ms-select" id="media-studio-task-create-topic"><option value="">加载中...</option></select>
       </div>
-      <div class="ms-form-row">
+      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
         <label class="ms-form-label">任务类型</label>
-        <select class="ms-select" style="flex:1" id="tv-type">
+        <select class="ms-select" id="tv-type">
           <option value="media">素材任务</option>
           <option value="copywriting">文案任务</option>
         </select>
       </div>
-      <div class="ms-form-row">
+      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
         <label class="ms-form-label">任务模式</label>
-        <select class="ms-select" style="flex:1" id="tv-mode">
+        <select class="ms-select" id="tv-mode">
           <option value="manual">手工</option>
           <option value="agent">Agent</option>
         </select>

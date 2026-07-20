@@ -24,6 +24,8 @@
   --ms-transition: 0.2s ease;
   --ms-font: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --ms-font-mono: 'Cascadia Code', 'Fira Code', monospace;
+  --ms-input-bg: var(--input-bg, var(--ms-bg-primary));
+  --ms-bg-overlay: rgba(7, 12, 19, 0.62);
 }
 
 /* === Layout === */
@@ -327,6 +329,11 @@
 
 .ms-input-search { min-width: 200px; }
 
+.ms-select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .ms-form-row {
   display: flex;
   gap: 12px;
@@ -342,7 +349,8 @@
 }
 
 .ms-form-input, .ms-form-textarea {
-  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   padding: 8px 12px;
   border: 1px solid var(--ms-border);
   border-radius: var(--ms-radius-sm);
@@ -357,6 +365,69 @@
   resize: vertical;
   font-family: var(--ms-font-mono);
   font-size: 12px;
+}
+
+/* -- Form Group (label stacked, full-width) -- */
+.ms-form-group {
+  margin-bottom: 10px;
+}
+.ms-form-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ms-text-secondary);
+  margin-bottom: 4px;
+}
+.ms-form-group input[type="text"],
+.ms-form-group input[type="number"],
+.ms-form-group select,
+.ms-form-group textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--ms-border);
+  border-radius: 8px;
+  background: var(--ms-input-bg);
+  color: var(--ms-text-primary);
+  font-size: 13px;
+  font-family: var(--ms-font);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.ms-form-group input[type="text"]:focus,
+.ms-form-group input[type="number"]:focus,
+.ms-form-group select:focus,
+.ms-form-group textarea:focus {
+  outline: none;
+  border-color: var(--ms-accent);
+}
+.ms-form-group textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+/* -- Form Group Inline (side-by-side) -- */
+.ms-form-group-inline {
+  display: flex;
+  gap: 10px;
+}
+.ms-form-group-inline > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* -- Form Error -- */
+.ms-form-error {
+  color: var(--ms-danger);
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 8px;
+  min-height: 14px;
+}
+.ms-form-error:not(:empty) {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ms-danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ms-danger) 35%, transparent);
 }
 
 /* === Loading / Empty States === */
@@ -438,23 +509,26 @@
 .ms-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: var(--ms-bg-overlay);
+  backdrop-filter: blur(6px);
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
   animation: ms-fade-in 0.15s ease;
 }
 
 .ms-modal {
   background: var(--ms-bg-card);
   border: 1px solid var(--ms-border);
-  border-radius: var(--ms-radius);
-  box-shadow: var(--ms-shadow-lg);
+  border-radius: 18px;
+  box-shadow: rgba(0,0,0,0.45) 0 18px 60px 0;
   max-width: 90vw;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
+  width: min(480px, 100%);
 }
 
 .ms-modal-header {
