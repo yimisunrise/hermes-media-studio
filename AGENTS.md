@@ -9,9 +9,6 @@
 ```bash
 # 开发：检查 JS 语法（唯一可用的验证方式）
 find src -name "*.js" -exec node --check {} \;
-
-# 验证 shell 脚本
-bash -n src/scripts/install.sh
 ```
 
 无测试套件、无类型检查、无 linter 配置。无 CI。
@@ -58,8 +55,4 @@ bash -n src/scripts/install.sh
 | 操作 | 命令 |
 |------|------|
 | JS 语法检查 | `find src -name "*.js" -exec node --check {} \;` |
-| Shell 语法检查 | `bash -n src/scripts/install.sh` |
-| 初始化工作空间 | `src/scripts/install.sh` |
-| 卸载 | `src/scripts/uninstall.sh`（需确认，有破坏性） |
-| 更新 | `src/scripts/update.sh`（git pull） |
 | 运行时 hash 路由 | `#kanban`、`#review`、`#tasks`、`#assets`、`#ideas`、`#topics`、`#themes`、`#database`、`#init` |

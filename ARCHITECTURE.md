@@ -729,11 +729,6 @@ src/
 │   │   └── DatabaseManager.js          # 数据库管理（SchemaRegistry）
 │   │       └── components/
 │   │           └── AssetCard.js         # 素材卡片组件
-│
-└── scripts/
-    ├── install.sh                      # 初始化工作空间
-    ├── uninstall.sh                    # 卸载扩展
-    └── update.sh                       # 更新（git pull）
 ```
 
 ---

@@ -120,13 +120,6 @@ export HERMES_WORKSPACE=/path/to/hermes-media-studio/workspace
 mkdir -p /path/to/workspace/{.system/init,.database/system,.agent-tasks,assets,configs/{themes,platforms}}
 ```
 
-或使用安装脚本：
-
-```bash
-chmod +x src/scripts/install.sh
-HERMES_WORKSPACE=/path/to/workspace ./src/scripts/install.sh
-```
-
 #### 4. 启动 WebUI
 
 ```bash
@@ -246,9 +239,6 @@ Theme ──→ Idea ──→ Topic ──→ Task ──┬──→ Asset（�
 ```bash
 # 验证 JS 语法（唯一可用的验证方式）
 find src -name "*.js" -exec node --check {} \;
-
-# 验证 Shell 脚本
-bash -n src/scripts/install.sh
 ```
 
 无测试套件、无类型检查、无 linter 配置。
@@ -315,11 +305,6 @@ src/
 │   │   ├── DatabaseManager.js      # 数据库管理
 │   │   └── components/
 │   │       └── AssetCard.js        # 素材卡片组件
-│
-└── scripts/
-    ├── install.sh                  # 初始化工作空间
-    ├── uninstall.sh                # 卸载扩展
-    └── update.sh                   # 更新（git pull）
 ```
 
 ### 核心概念
@@ -340,10 +325,10 @@ src/
 ## 卸载
 
 ```bash
-# 运行卸载脚本
-./src/scripts/uninstall.sh
+# 删除工作空间目录
+rm -rf "$HERMES_WORKSPACE"
 
-# 或手动操作：
+# 手动操作：
 # 1. 删除 WebUI 环境变量中的扩展配置
 # 2. 重启 WebUI
 ```
