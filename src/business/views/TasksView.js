@@ -179,7 +179,7 @@ export class TasksView {
     const actionsEl = document.createElement('div');
     actionsEl.className = 'ms-item-card-actions';
     const delBtn = document.createElement('button');
-    delBtn.style.cssText = 'padding:4px 10px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:11px;font-weight:500;background:var(--ms-danger);color:#fff;';
+    delBtn.className = 'ms-btn ms-btn-sm ms-btn-danger';
     delBtn.textContent = '删除';
     delBtn.addEventListener('click', (e) => { e.stopPropagation(); this._deleteTask(task); });
     actionsEl.appendChild(delBtn);
@@ -200,7 +200,7 @@ export class TasksView {
     </div>`);
     m.setFooter(`<div style="display:flex;justify-content:center;gap:8px;">
       <button class="ms-btn ms-btn-sm" id="task-del-cancel">取消</button>
-      <button class="ms-btn ms-btn-sm" id="task-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+      <button class="ms-btn ms-btn-sm ms-btn-danger" id="task-del-confirm">确认删除</button>
     </div>`);
     m.open();
     m.el.querySelector('#task-del-cancel').onclick = () => m.close();

@@ -46,9 +46,8 @@ export class TemplatesView {
     this._tabBtns = [];
     for (const tab of TABS) {
       const tabBtn = document.createElement('button');
-      tabBtn.className = 'ms-btn ms-btn-sm';
+      tabBtn.className = 'ms-btn ms-btn-sm ms-tab-btn';
       tabBtn.textContent = tab.label;
-      tabBtn.style.cssText = 'border-radius:0;border-bottom:2px solid transparent;padding:8px 16px;font-size:13px;';
       if (tab.key === this._activeTab) {
         tabBtn.style.borderBottomColor = 'var(--ms-primary,#4a90d9)';
         tabBtn.style.color = 'var(--ms-primary,#4a90d9)';
@@ -339,7 +338,7 @@ export class TemplatesView {
     m.setBody(body);
     m.setFooter(`
       <button class="ms-btn ms-btn-sm" id="tmpl-del-cancel">取消</button>
-      <button class="ms-btn ms-btn-sm" id="tmpl-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+      <button class="ms-btn ms-btn-sm ms-btn-danger" id="tmpl-del-confirm">确认删除</button>
     `);
     m.open();
 

@@ -103,7 +103,7 @@ export class ContentEditor {
     if (this._versions && this._versions.length > 1) {
       const versionSel = document.createElement('select');
       versionSel.className = 'ms-select';
-      versionSel.style.cssText = 'width:auto;font-size:12px;padding:3px 8px;';
+      versionSel.classList.add('ms-input-sm'); versionSel.style.width = 'auto';
       for (const v of this._versions) {
         const opt = document.createElement('option');
         opt.value = v.id;
