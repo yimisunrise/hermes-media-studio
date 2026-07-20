@@ -1,6 +1,7 @@
 import { empty } from '../../framework/utils/dom.js';
 import { Modal } from '../../framework/ui/Modal.js';
 import { packageRepo, platformRepo, contentRepo, scheduleRepo, publishLogRepo } from '../data/index.js';
+import { formGroup, input, select } from './components/FormBuilder.js';
 
 const PACKAGE_STATUS_LABELS = {
   draft: '草稿',
@@ -188,15 +189,15 @@ export class PublishManager {
     const body = document.createElement('div');
 
     const finalizedContents = this._contents.filter(c => c.status === 'finalized');
-    const contentRow = this._formField('关联文稿 *', 'select');
-    const contentSelect = contentRow.querySelector('select');
+    const contentSelect = select();
     contentSelect.innerHTML = '<option value="">-- 选择已定稿的文稿 --</option>' +
       finalizedContents.map(c =>
         `<option value="${c.id}">${this._escapeHtml(c.title || c.id)}</option>`
       ).join('');
+    const contentRow = formGroup('关联文稿 *', contentSelect);
     body.appendChild(contentRow);
 
-    const titleRow = this._formField('发布包标题', 'input', '', '默认为文稿标题');
+    const titleRow = formGroup('发布包标题', input({ placeholder: '默认为文稿标题' }));
     const titleInput = titleRow.querySelector('input');
     body.appendChild(titleRow);
 
@@ -207,7 +208,8 @@ export class PublishManager {
       }
     });
 
-    const platformRow = this._formField('选择平台 *', 'custom');
+    const platformWrapper = document.createElement('div');
+    const platformRow = formGroup('选择平台 *', platformWrapper);
     const platformList = document.createElement('div');
     platformList.style.cssText = 'max-height:160px;overflow-y:auto;border:1px solid var(--ms-border);border-radius:var(--ms-radius-sm,4px);padding:6px 8px;';
     const enabledPlatforms = this._platforms.filter(p => p.enabled !== false);
@@ -226,13 +228,12 @@ export class PublishManager {
         platformList.appendChild(label);
       }
     }
-    platformRow.appendChild(platformList);
+    platformWrapper.appendChild(platformList);
     body.appendChild(platformRow);
 
     const timingRow = document.createElement('div');
-    timingRow.style.marginBottom = '14px';
-    const timingLabel = document.createElement('div');
-    timingLabel.className = 'ms-form-label';
+    timingRow.className = 'ms-form-group';
+    const timingLabel = document.createElement('label');
     timingLabel.textContent = '发布方式';
     timingRow.appendChild(timingLabel);
 
@@ -524,14 +525,13 @@ export class PublishManager {
     info.textContent = '平台: ' + platformName;
     body.appendChild(info);
 
-    const urlRow = this._formField('发布地址 (URL)', 'input', pLog.url || '', 'https://...');
+    const urlRow = formGroup('发布地址 (URL)', input({ value: pLog.url || '', placeholder: 'https://...' }));
     const urlInput = urlRow.querySelector('input');
     body.appendChild(urlRow);
 
     const resultRow = document.createElement('div');
-    resultRow.style.marginBottom = '14px';
-    const resultLabel = document.createElement('div');
-    resultLabel.className = 'ms-form-label';
+    resultRow.className = 'ms-form-group';
+    const resultLabel = document.createElement('label');
     resultLabel.textContent = '发布结果';
     resultRow.appendChild(resultLabel);
 
@@ -558,10 +558,9 @@ export class PublishManager {
     body.appendChild(resultRow);
 
     const errorWrapper = document.createElement('div');
-    errorWrapper.style.marginBottom = '14px';
+    errorWrapper.className = 'ms-form-group';
     errorWrapper.style.display = 'none';
-    const errorLabel = document.createElement('div');
-    errorLabel.className = 'ms-form-label';
+    const errorLabel = document.createElement('label');
     errorLabel.textContent = '错误信息';
     errorWrapper.appendChild(errorLabel);
     const errorTextarea = document.createElement('textarea');
@@ -645,41 +644,6 @@ export class PublishManager {
     } catch (e) {
       console.error('汇总发布包状态失败', e);
     }
-  }
-
-  _formField(label, type, value, placeholder) {
-    const row = document.createElement('div');
-    row.style.marginBottom = '14px';
-
-    const labelEl = document.createElement('div');
-    labelEl.className = 'ms-form-label';
-    labelEl.textContent = label;
-    row.appendChild(labelEl);
-
-    if (type === 'select') {
-      const select = document.createElement('select');
-      select.className = 'ms-select';
-      select.style.width = '100%';
-      if (value) select.value = value;
-      row.appendChild(select);
-    } else if (type === 'textarea') {
-      const textarea = document.createElement('textarea');
-      textarea.className = 'ms-form-textarea';
-      textarea.placeholder = placeholder || '';
-      textarea.value = value || '';
-      textarea.style.minHeight = '80px';
-      textarea.style.fontFamily = 'monospace';
-      textarea.style.fontSize = '12px';
-      row.appendChild(textarea);
-    } else if (type === 'custom') {
-    } else {
-      const input = document.createElement('input');
-      input.className = 'ms-form-input';
-      input.placeholder = placeholder || '';
-      input.value = value || '';
-      row.appendChild(input);
-    }
-    return row;
   }
 
   _escapeHtml(str) {

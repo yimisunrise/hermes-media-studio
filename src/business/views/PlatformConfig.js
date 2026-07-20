@@ -1,6 +1,7 @@
 import { empty } from '../../framework/utils/dom.js';
 import { Modal } from '../../framework/ui/Modal.js';
 import { platformRepo } from '../data/index.js';
+import { formGroup, input, select, textarea } from './components/FormBuilder.js';
 
 const PLATFORM_TYPE_LABELS = {
   xiaohongshu: '小红书',
@@ -35,7 +36,7 @@ export class PlatformConfig {
 
     const addBtn = document.createElement('button');
     addBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
-    addBtn.textContent = '添加平台';
+    addBtn.textContent = '新建平台';
     addBtn.addEventListener('click', () => this._openEditor(null));
     toolbar.appendChild(addBtn);
     container.appendChild(toolbar);
@@ -46,7 +47,7 @@ export class PlatformConfig {
     this._content = content;
 
     if (this._platforms.length === 0) {
-      content.innerHTML = '<div class="ms-empty"><svg class="ms-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><div>暂无平台配置，点击上方「添加平台」添加第一个发布平台</div></div>';
+      content.innerHTML = '<div class="ms-empty"><svg class="ms-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><div>暂无平台配置，点击上方「新建平台」添加第一个发布平台</div></div>';
       return;
     }
 
@@ -147,25 +148,27 @@ export class PlatformConfig {
 
     const body = document.createElement('div');
 
-    const nameRow = this._formField('平台名称 *', 'input', platform ? platform.name : '', '如：小红书主号');
+    const nameRow = formGroup('平台名称 *', input({ value: platform ? platform.name : '', placeholder: '如：小红书主号' }));
     const nameInput = nameRow.querySelector('input');
     body.appendChild(nameRow);
 
-    const typeRow = this._formField('平台类型', 'select', platform ? platform.type : 'xiaohongshu');
-    const typeSelect = typeRow.querySelector('select');
+    const typeSelect = select({ value: platform ? platform.type : 'xiaohongshu' });
     typeSelect.innerHTML = Object.entries(PLATFORM_TYPE_LABELS).map(([v, l]) =>
       `<option value="${v}" ${(platform ? platform.type : 'xiaohongshu') === v ? 'selected' : ''}>${l}</option>`
     ).join('');
+    const typeRow = formGroup('平台类型', typeSelect);
     body.appendChild(typeRow);
 
-    const slugRow = this._formField('标识符', 'input', platform ? (platform.slug || '') : '', '英文标识，如 my-xiaohongshu');
+    const slugRow = formGroup('标识符', input({ value: platform ? (platform.slug || '') : '', placeholder: '英文标识，如 my-xiaohongshu' }));
     const slugInput = slugRow.querySelector('input');
     body.appendChild(slugRow);
 
-    const configRow = this._formField('发布配置 (JSON)', 'textarea', platform ? JSON.stringify(platform.publishConfig || {}, null, 2) : '', '{\n  "defaultTags": ["tag1"]\n}');
+    const configRow = formGroup('发布配置 (JSON)', textarea({ value: platform ? JSON.stringify(platform.publishConfig || {}, null, 2) : '', placeholder: '{\n  "defaultTags": ["tag1"]\n}', minHeight: '80px' }));
+    configRow.querySelector('textarea').style.fontFamily = 'monospace';
+    configRow.querySelector('textarea').style.fontSize = '12px';
     body.appendChild(configRow);
 
-    const m = new Modal({ title: isEdit ? '编辑平台' : '添加平台', size: 'md' });
+    const m = new Modal({       title: isEdit ? '编辑平台' : '新建平台', size: 'md' });
     m.setBody(body);
     m.setFooter(`
       <button class="ms-btn ms-btn-sm" id="pc-cancel">取消</button>
@@ -222,40 +225,6 @@ export class PlatformConfig {
       } catch (e) { console.error('删除平台失败', e); }
       m.close();
     });
-  }
-
-  _formField(label, type, value, placeholder) {
-    const row = document.createElement('div');
-    row.style.marginBottom = '14px';
-
-    const labelEl = document.createElement('div');
-    labelEl.className = 'ms-form-label';
-    labelEl.textContent = label;
-    row.appendChild(labelEl);
-
-    if (type === 'select') {
-      const select = document.createElement('select');
-      select.className = 'ms-select';
-      select.style.width = '100%';
-      if (value) select.value = value;
-      row.appendChild(select);
-    } else if (type === 'textarea') {
-      const textarea = document.createElement('textarea');
-      textarea.className = 'ms-form-textarea';
-      textarea.placeholder = placeholder || '';
-      textarea.value = value || '';
-      textarea.style.minHeight = '80px';
-      textarea.style.fontFamily = 'monospace';
-      textarea.style.fontSize = '12px';
-      row.appendChild(textarea);
-    } else {
-      const input = document.createElement('input');
-      input.className = 'ms-form-input';
-      input.placeholder = placeholder || '';
-      input.value = value || '';
-      row.appendChild(input);
-    }
-    return row;
   }
 
   _escapeHtml(str) {
