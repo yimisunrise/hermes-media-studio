@@ -229,8 +229,8 @@ export class TasksView {
       : '<select class="ms-select" id="tv-form-mode"><option value="manual">手工</option><option value="agent">Agent</option></select>';
 
     const statusRow = readonlyTypeAndMode ? `
-      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
-        <label class="ms-form-label">状态</label>
+       <div class="ms-form-group">
+         <label>状态</label>
         <select class="ms-select" id="tv-form-status">
           ${Object.entries(STATUS_LABELS).map(([v, label]) =>
             `<option value="${v}">${label}</option>`
@@ -239,7 +239,7 @@ export class TasksView {
       </div>` : '';
 
     const promptHeader = `<div style="display:flex;justify-content:space-between;align-items:center">
-          <label class="ms-form-label">创作简报</label>
+          <label>创作简报</label>
           <div style="position:relative">
             <button class="ms-btn ms-btn-sm" id="tv-form-template-btn" type="button">选择模板</button>
             <div class="ms-template-selector-panel" id="tv-form-template-panel" style="display:none;position:absolute;top:100%;right:0;z-index:1000;min-width:280px;max-height:300px;overflow-y:auto;background:var(--bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
@@ -250,24 +250,24 @@ export class TasksView {
          </div>`;
 
     return `
-      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
-        <label class="ms-form-label">标题</label>
+       <div class="ms-form-group">
+         <label>标题</label>
         <input class="ms-form-input" id="tv-form-title" placeholder="输入任务标题..." />
       </div>
-      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
-        <label class="ms-form-label">关联选题 *</label>
+       <div class="ms-form-group">
+         <label>关联选题 *</label>
         <select class="ms-select" id="tv-form-topic"><option value="">加载中...</option></select>
       </div>
-      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
-        <label class="ms-form-label">任务类型</label>
+       <div class="ms-form-group">
+         <label>任务类型</label>
         ${typeField}
       </div>
-      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
-        <label class="ms-form-label">任务模式</label>
+       <div class="ms-form-group">
+         <label>任务模式</label>
         ${modeField}
       </div>
-      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
-        ${promptHeader}
+       <div class="ms-form-group">
+         ${promptHeader}
         <textarea class="ms-form-textarea" id="tv-form-prompt" placeholder="输入任务简报内容..."></textarea>
       </div>
       ${statusRow}

@@ -34,18 +34,9 @@ export class AssetGallery {
       .ms-asset-gallery-header h2 { margin: 0; font-size: 20px; font-weight: 600; color: var(--ms-text-primary, #e0e0e0); }
       .ms-asset-gallery-filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
       .ms-asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-      .ms-asset-card { background: var(--ms-bg-card, #0f3460); border: 1px solid var(--ms-border, #2a2a4a); border-radius: var(--ms-radius, 8px); overflow: hidden; transition: border-color 0.2s ease; cursor: pointer; }
-      .ms-asset-card:hover { border-color: var(--ms-accent, #e94560); }
-      .ms-asset-thumb { width: 100%; height: 140px; background: var(--ms-bg-primary, #1a1a2e); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-      .ms-asset-thumb img { width: 100%; height: 100%; object-fit: cover; }
-      .ms-asset-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .ms-asset-thumb-icon { font-size: 32px; color: var(--ms-text-secondary, #a0a0a0); }
-      .ms-asset-info { padding: 10px 12px; }
-      .ms-asset-name { font-size: 13px; color: var(--ms-text-primary, #e0e0e0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-      .ms-asset-meta { font-size: 11px; color: var(--ms-text-secondary, #a0a0a0); display: flex; gap: 8px; }
-      .ms-asset-type-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; background: var(--ms-bg-primary, #1a1a2e); color: var(--ms-accent, #e94560); border: 1px solid var(--ms-border, #2a2a4a); }
-      .ms-asset-empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px; color: var(--ms-text-secondary, #a0a0a0); gap: 8px; text-align: center; }
+      .ms-asset-empty { grid-column: 1 / -1; }
       .ms-asset-upload-input { display: none; }
+      .ms-media-card:hover .ms-item-card-actions { display: flex; }
     `;
     document.head.appendChild(style);
   }
@@ -124,7 +115,7 @@ export class AssetGallery {
     }
 
     if (filtered.length === 0) {
-      this._gridEl.innerHTML = '<div class="ms-asset-empty"><div style="font-size:32px;opacity:0.3;">-</div><div>暂无素材</div><div style="font-size:12px;">点击右上角「上传素材」添加</div></div>';
+      this._gridEl.innerHTML = '<div class="ms-empty" style="grid-column:1/-1"><svg class="ms-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><div>暂无素材，点击上方上传</div></div>';
       return;
     }
 
@@ -165,7 +156,25 @@ export class AssetGallery {
     }
   }
 
+  _confirmDelete() {
+    return new Promise((resolve) => {
+      const id = 'ag-confirm-del-' + Date.now();
+      const modal = new Modal({ title: '确认删除', size: 'sm' });
+      modal.setBody('<p style="margin:0;font-size:14px;color:var(--ms-text-primary);">确认删除此素材？此操作不可恢复。</p>');
+      modal.setFooter(`
+        <button class="ms-btn" id="${id}-cancel">取消</button>
+        <button class="ms-btn ms-btn-primary" style="background:var(--ms-danger,#e74c3c);border-color:var(--ms-danger,#e74c3c);" id="${id}-confirm">确认删除</button>
+      `);
+      modal.open();
+      modal.el.querySelector(`#${id}-cancel`).onclick = () => { modal.close(); resolve(false); };
+      modal.el.querySelector(`#${id}-confirm`).onclick = () => { modal.close(); resolve(true); };
+      modal.el.querySelector(`#${id}-confirm`).focus();
+    });
+  }
+
   async _deleteAsset(asset) {
+    const confirmed = await this._confirmDelete();
+    if (!confirmed) return;
     try {
       if (asset.filePath) {
         try {
@@ -206,11 +215,19 @@ export class AssetGallery {
       { label: '创建时间', value: asset.createdAt || '-' }
     ];
     for (const f of fieldDefs) {
-      bodyHtml += `<div class="ms-form-row" style="margin-bottom:12px;flex-direction:column;align-items:stretch;">
-        <div class="ms-form-label" style="font-size:12px;margin-bottom:4px;">${f.label}</div>
+      bodyHtml += `<div class="ms-form-group">
+        <label>${f.label}</label>
         <div style="font-size:13px;color:var(--ms-text-primary,#e0e0e0);word-break:break-all;">${String(f.value)}</div>
       </div>`;
     }
+
+    let footerHtml = '';
+    if (asset.filePath) {
+      footerHtml += `<button class="ms-btn" id="ag-preview">预览</button>`;
+      footerHtml += `<button class="ms-btn" id="ag-download" style="margin-left:6px;">下载原始文件</button>`;
+    }
+    footerHtml += `<button class="ms-btn" style="color:var(--ms-danger,#e74c3c);border-color:var(--ms-danger,#e74c3c);" id="ag-delete">删除</button>
+      <button class="ms-btn ms-btn-primary" id="ag-close">关闭</button>`;
 
     modal.setBody(bodyHtml);
     modal.setFooter(footerHtml);
@@ -246,13 +263,6 @@ export class AssetGallery {
       });
     }
 
-    let footerHtml = '';
-    if (asset.filePath) {
-      footerHtml += `<button class="ms-btn" id="ag-preview">预览</button>`;
-      footerHtml += `<button class="ms-btn" id="ag-download" style="margin-left:6px;">下载原始文件</button>`;
-    }
-    footerHtml += `<button class="ms-btn" style="color:var(--ms-danger,#e74c3c);border-color:var(--ms-danger,#e74c3c);" id="ag-delete">删除</button>
-      <button class="ms-btn ms-btn-primary" id="ag-close">关闭</button>`;
     modal.el.querySelector('#ag-close').onclick = () => modal.close();
     if (asset.filePath) {
       modal.el.querySelector('#ag-download').onclick = async () => {
@@ -287,7 +297,8 @@ export class AssetGallery {
       };
     }
     modal.el.querySelector('#ag-delete').onclick = async () => {
-      if (!window.confirm('确认删除此素材？')) return;
+      const confirmed = await this._confirmDelete();
+      if (!confirmed) return;
       await this._deleteAsset(asset);
       modal.close();
     };
