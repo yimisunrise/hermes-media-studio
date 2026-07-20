@@ -262,7 +262,7 @@ export class PublishManager {
     const dateInput = document.createElement('input');
     dateInput.type = 'datetime-local';
     dateInput.className = 'ms-form-input';
-    dateInput.style.cssText = 'padding:6px 10px;font-size:13px;border:1px solid var(--ms-border);border-radius:var(--ms-radius-sm,4px);background:var(--ms-bg-primary);color:var(--ms-text-primary);';
+
     dateWrapper.appendChild(dateInput);
     timingRow.appendChild(dateWrapper);
 
@@ -473,7 +473,7 @@ export class PublishManager {
     const m = new Modal({ title: '发布包详情', size: 'lg' });
     m.setBody(body);
     m.setFooter(`
-      ${canPublish ? '<button class="ms-btn ms-btn-primary ms-btn-sm" id="pm-detail-publish" style="margin-right:8px">发布</button>' : ''}
+      ${canPublish ? '<button class="ms-btn ms-btn-primary ms-btn-sm" id="pm-detail-publish">发布</button>' : ''}
       <button class="ms-btn ms-btn-sm" id="pm-detail-close">关闭</button>
     `);
     m.open();
@@ -659,7 +659,7 @@ export class PublishManager {
     if (type === 'select') {
       const select = document.createElement('select');
       select.className = 'ms-select';
-      select.style.cssText = 'width:100%;padding:6px 10px;font-size:13px;border:1px solid var(--ms-border);border-radius:var(--ms-radius-sm,4px);background:var(--ms-bg-primary);color:var(--ms-text-primary);';
+      select.style.width = '100%';
       if (value) select.value = value;
       row.appendChild(select);
     } else if (type === 'textarea') {

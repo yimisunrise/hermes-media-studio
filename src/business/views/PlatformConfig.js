@@ -209,7 +209,7 @@ export class PlatformConfig {
     m.setBody(body);
     m.setFooter(`
       <button class="ms-btn ms-btn-sm" id="pc-del-cancel">取消</button>
-      <button class="ms-btn ms-btn-sm" id="pc-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+      <button class="ms-btn ms-btn-sm ms-btn-danger" id="pc-del-confirm">确认删除</button>
     `);
     m.open();
 
@@ -236,7 +236,7 @@ export class PlatformConfig {
     if (type === 'select') {
       const select = document.createElement('select');
       select.className = 'ms-select';
-      select.style.cssText = 'width:100%;padding:6px 10px;font-size:13px;border:1px solid var(--ms-border);border-radius:var(--ms-radius-sm);background:var(--ms-bg-primary);color:var(--ms-text-primary);';
+      select.style.width = '100%';
       if (value) select.value = value;
       row.appendChild(select);
     } else if (type === 'textarea') {

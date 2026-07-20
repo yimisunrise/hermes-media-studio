@@ -261,7 +261,7 @@ export class ThemeStrategy {
     m.setBody(body);
     m.setFooter(`
       <button class="ms-btn ms-btn-sm" id="ms-theme-del-cancel">取消</button>
-      <button class="ms-btn ms-btn-sm" id="ms-theme-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+      <button class="ms-btn ms-btn-sm ms-btn-danger" id="ms-theme-del-confirm">确认删除</button>
     `);
     m.open();
 
