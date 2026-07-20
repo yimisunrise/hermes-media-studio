@@ -287,17 +287,15 @@ export class TemplatesView {
     body.appendChild(contentRow);
 
     modal.setBody(body);
+    modal.setFooter(`
+      <button class="ms-btn ms-btn-sm" id="tmpl-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary ms-btn-sm" id="tmpl-save">${isEdit ? '保存' : '创建'}</button>
+    `);
+    modal.open();
 
-    const footer = document.createElement('div');
-    footer.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'ms-btn ms-btn-sm';
-    cancelBtn.textContent = '取消';
+    const cancelBtn = modal.el.querySelector('#tmpl-cancel');
+    const saveBtn = modal.el.querySelector('#tmpl-save');
     cancelBtn.addEventListener('click', () => modal.close());
-    footer.appendChild(cancelBtn);
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
-    saveBtn.textContent = isEdit ? '保存' : '创建';
     saveBtn.addEventListener('click', async () => {
       const name = nameInput.value.trim();
       if (!name) {
@@ -328,10 +326,6 @@ export class TemplatesView {
         alert('操作失败: ' + e.message);
       }
     });
-    footer.appendChild(saveBtn);
-    modal.setFooter(footer);
-
-    modal.open();
     setTimeout(() => nameInput.focus(), 100);
   }
 
@@ -341,17 +335,16 @@ export class TemplatesView {
     body.style.textAlign = 'center';
     body.innerHTML = `<div style="font-size:16px;margin-bottom:12px;">确认删除模板「${tmpl.name}」？</div><div style="font-size:12px;color:var(--ms-text-secondary);">此操作不可撤销。</div>`;
 
-    const footer = document.createElement('div');
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'ms-btn ms-btn-sm';
-    cancelBtn.textContent = '取消';
-    footer.appendChild(cancelBtn);
+    const m = new Modal({ size: 'sm', container: document.body });
+    m.setBody(body);
+    m.setFooter(`
+      <button class="ms-btn ms-btn-sm" id="tmpl-del-cancel">取消</button>
+      <button class="ms-btn ms-btn-sm" id="tmpl-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+    `);
+    m.open();
 
-    const delBtn = document.createElement('button');
-    delBtn.className = 'ms-btn ms-btn-sm';
-    delBtn.style.cssText = 'padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;';
-    delBtn.textContent = '确认删除';
-    delBtn.addEventListener('click', async () => {
+    m.el.querySelector('#tmpl-del-cancel').addEventListener('click', () => m.close());
+    m.el.querySelector('#tmpl-del-confirm').addEventListener('click', async () => {
       try {
         await this._ts().delete(tmpl.id);
         await this._loadAndRender();
@@ -360,13 +353,6 @@ export class TemplatesView {
       }
       m.close();
     });
-    footer.appendChild(delBtn);
-
-    const m = new Modal({ size: 'sm', container: document.body });
-    m.setBody(body);
-    m.setFooter(footer);
-    m.open();
-    cancelBtn.addEventListener('click', () => m.close());
   }
 }
 

@@ -9,11 +9,12 @@ import { AssetUploader } from '../services/AssetUploader.js';
 export class TaskDetail {
   static async open(api, state, schemaRegistry, task) {
     const modal = new Modal({ width: '680px' });
+    const body = document.createElement('div');
 
     const title = document.createElement('h3');
     const typeLabels = { media: '素材任务', copywriting: '文案任务' };
     title.textContent = (typeLabels[task.taskType] || '') + '详情';
-    modal.bodyEl.appendChild(title);
+    body.appendChild(title);
 
     const infoSection = document.createElement('div');
     infoSection.style.cssText = 'margin-bottom:20px;';
@@ -57,7 +58,7 @@ export class TaskDetail {
     timeEl.style.cssText = 'font-size:11px;color:var(--ms-text-secondary,#a0a0a0);margin-top:4px;';
     timeEl.textContent = '创建时间: ' + formatDateTime(task.createdAt);
     infoSection.appendChild(timeEl);
-    modal.bodyEl.appendChild(infoSection);
+    body.appendChild(infoSection);
 
     const assetSection = document.createElement('div');
     assetSection.style.cssText = 'margin-bottom:20px;';
@@ -93,7 +94,7 @@ export class TaskDetail {
     assetList.id = 'media-studio-task-detail-assets';
     assetList.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
     assetSection.appendChild(assetList);
-    modal.bodyEl.appendChild(assetSection);
+    body.appendChild(assetSection);
 
     const contentSection = document.createElement('div');
     contentSection.style.cssText = 'margin-bottom:16px;';
@@ -209,8 +210,9 @@ export class TaskDetail {
     contentList.id = 'media-studio-task-detail-contents';
     contentList.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
     contentSection.appendChild(contentList);
-    modal.bodyEl.appendChild(contentSection);
+    body.appendChild(contentSection);
 
+    modal.setBody(body);
     modal.setFooter('<button class="ms-btn" id="td-close">关闭</button>');
     modal.open();
     modal.el.querySelector('#td-close').onclick = () => modal.close();
