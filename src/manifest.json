@@ -1,0 +1,11 @@
+{
+  "extensions": [
+    {
+      "id": "hermes-media-studio",
+      "name": "Media Studio",
+      "description": "自媒体内容生产驾驶舱 — 将文件管理升级为从灵感到发布的全流程生产流水线。",
+      "scripts": ["app.js"],
+      "stylesheets": ["app.css"]
+    }
+  ]
+}

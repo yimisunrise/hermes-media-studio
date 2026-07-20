@@ -1,0 +1,29 @@
+{
+  "id": "hermes-media-studio",
+  "name": "Media Studio",
+  "description": "自媒体内容生产驾驶舱 — 将文件管理升级为从灵感到发布的全流程生产流水线。支持灵感随手记、选题策划、主题策略、看板流水线、批量审核、素材管理、发布管理等功能。基于 Hermes WebUI Extension 机制。",
+  "version": "1.0.0",
+  "author": "yimisunrise",
+  "assets": {
+    "scripts": ["app.js"],
+    "stylesheets": ["app.css"]
+  },
+  "capabilities": ["manifest-bundle"],
+  "lifecycle": {
+    "webui_restart_required": true,
+    "sidecar_start_required": false,
+    "native_host_start_required": false,
+    "native_host_autostart": "none"
+  },
+  "screenshots": [],
+  "permissions": {
+    "webui_api": { "read": ["*"], "write": ["*"] },
+    "webui_navigation": true,
+    "dom": { "owned": true, "mutates_core_views": true },
+    "storage": { "owned": [], "shared_webui_keys": [] },
+    "loopback_sidecar": false,
+    "native_host": false,
+    "filesystem": { "arbitrary": true, "serves_bundled_assets": true },
+    "network_external": false
+  }
+}
