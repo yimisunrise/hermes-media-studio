@@ -1,6 +1,6 @@
 import { empty } from '../../framework/utils/dom.js';
 import { formatDateTime } from '../../framework/utils/format.js';
-import { taskRepo, assetRepo, contentRepo, repo, templateRepo } from '../data/index.js';
+import { taskRepo, assetRepo, contentRepo, repo } from '../data/index.js';
 import { AssetCard } from './components/AssetCard.js';
 import { ContentEditor } from './ContentEditor.js';
 import { Modal } from '../../framework/ui/Modal.js';
@@ -70,7 +70,7 @@ export class TaskDetail {
     assetHeader.appendChild(assetTitle);
     const uploadBtn = document.createElement('button');
     uploadBtn.className = 'ms-btn ms-btn-sm';
-    uploadBtn.textContent = '+ 上传';
+    uploadBtn.textContent = '上传';
     uploadBtn.addEventListener('click', () => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -106,7 +106,7 @@ export class TaskDetail {
     contentHeader.appendChild(contentTitle);
     const newContentBtn = document.createElement('button');
     newContentBtn.className = 'ms-btn ms-btn-sm';
-    newContentBtn.textContent = '+ 新建文稿';
+    newContentBtn.textContent = '新建';
     newContentBtn.addEventListener('click', async () => {
       try {
         const cr = contentRepo(api, schemaRegistry);
@@ -125,85 +125,6 @@ export class TaskDetail {
       }
     });
     contentHeader.appendChild(newContentBtn);
-
-    const templateBtn = document.createElement('button');
-    templateBtn.className = 'ms-btn ms-btn-sm';
-    templateBtn.textContent = '从模板新建';
-    templateBtn.style.marginLeft = '8px';
-    templateBtn.addEventListener('click', async () => {
-      const panelId = 'media-studio-template-selector-panel';
-      const existing = document.getElementById(panelId);
-      if (existing) { existing.remove(); return; }
-
-      const panel = document.createElement('div');
-      panel.id = panelId;
-      panel.className = 'ms-template-selector-panel';
-      panel.style.cssText = 'position:absolute;z-index:10000;width:300px;max-height:320px;overflow-y:auto;background:var(--ms-bg-card,#0f3460);border:1px solid var(--ms-border,#2a2a4a);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:8px 0;';
-      const btnTop = templateBtn.offsetTop;
-      const btnLeft = templateBtn.offsetLeft;
-      const btnHeight = templateBtn.offsetHeight;
-      panel.style.top = (btnTop + btnHeight + 4) + 'px';
-      panel.style.left = btnLeft + 'px';
-      panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ms-text-secondary,#a0a0a0);font-size:13px;">加载中...</div>';
-
-      if (contentHeader.style.position !== 'relative') {
-        contentHeader.style.position = 'relative';
-      }
-      contentHeader.appendChild(panel);
-
-      const clickOutside = (e) => {
-        if (!panel.contains(e.target) && e.target !== templateBtn) {
-          panel.remove();
-          document.removeEventListener('click', clickOutside);
-        }
-      };
-      setTimeout(() => document.addEventListener('click', clickOutside), 0);
-
-      try {
-        const tr = templateRepo(api, schemaRegistry);
-        const result = await tr.find({ filter: { type: 'content' }, sort: '-createdAt' });
-        const templates = result.records || [];
-
-        panel.innerHTML = '';
-        if (templates.length === 0) {
-          panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ms-text-secondary,#a0a0a0);font-size:13px;">暂无 content 类型模板</div>';
-          return;
-        }
-
-        for (const tmpl of templates) {
-          const item = document.createElement('div');
-          item.className = 'ms-template-selector-item';
-          item.style.cssText = 'padding:10px 14px;cursor:pointer;transition:background 0.15s;';
-          item.innerHTML = `<div style="font-size:13px;font-weight:500;color:var(--ms-text-primary,#e0e0e0);margin-bottom:2px;">${TaskDetail._escapeHtml(tmpl.name || '未命名')}</div>` +
-            (tmpl.description ? `<div style="font-size:11px;color:var(--ms-text-secondary,#a0a0a0);">${TaskDetail._escapeHtml(tmpl.description)}</div>` : '');
-          item.onmouseenter = () => { item.style.background = 'var(--ms-bg-primary,#1a1a2e)'; };
-          item.onmouseleave = () => { item.style.background = ''; };
-          item.addEventListener('click', async () => {
-            try {
-              const cr = contentRepo(api, schemaRegistry);
-              const newContent = await cr.create({
-                taskId: task.id,
-                topicId: task.topicId || '',
-                version: 1,
-                title: tmpl.name || '新文稿',
-                content: tmpl.content || '',
-                status: 'draft'
-              });
-              panel.remove();
-              document.removeEventListener('click', clickOutside);
-              modal.close();
-              await TaskDetail._openContentEditor(api, state, schemaRegistry, task, newContent);
-            } catch (e) {
-              console.error('从模板创建文稿失败:', e);
-            }
-          });
-          panel.appendChild(item);
-        }
-      } catch (e) {
-        panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ms-danger,#e74c3c);font-size:13px;">加载模板失败</div>';
-      }
-    });
-    contentHeader.appendChild(templateBtn);
     contentSection.appendChild(contentHeader);
 
     const contentList = document.createElement('div');
