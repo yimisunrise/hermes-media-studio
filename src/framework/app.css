@@ -391,7 +391,7 @@
 
 /* -- Form Group (label stacked, full-width) -- */
 .ms-form-group {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .ms-form-group label {
   display: block;

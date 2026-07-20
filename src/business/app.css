@@ -610,8 +610,6 @@
 /* === Generation Dialog === */
 .ms-gen-dialog { max-width: 500px; }
 
-.ms-gen-dialog .ms-form-row { margin-bottom: 12px; }
-
 /* === Trash / Recovery === */
 .ms-trash-notice {
   background: rgba(255, 152, 0, 0.1);
@@ -699,26 +697,6 @@
 .ms-db-edit-btn:hover { opacity: 1 !important; color: var(--ms-accent); }
 
 .ms-db-field-list { display: flex; flex-direction: column; gap: 6px; }
-
-.ms-db-form-field-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.ms-db-form-field-row .ms-db-field-remove { opacity: 0.4; transition: opacity var(--ms-transition); }
-.ms-db-form-field-row .ms-db-field-remove:hover { opacity: 1; }
-
-.ms-db-form-field { margin-bottom: 12px; }
-.ms-db-form-field:last-child { margin-bottom: 0; }
-
-.ms-db-form-label {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ms-text-secondary);
-}
 
 .ms-db-empty { padding: 24px 12px; text-align: center; color: var(--ms-text-secondary); font-size: 13px; }
 .ms-db-loading { padding: 24px 12px; text-align: center; color: var(--ms-text-secondary); font-size: 13px; }
