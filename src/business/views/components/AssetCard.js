@@ -1,22 +1,45 @@
 const TYPE_LABELS = { image: '图片', video: '视频', audio: '音频' };
 
+const TYPE_ICONS = {
+  image: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+  video: '<rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10 8 17 12 10 16"/>',
+  audio: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+};
+const DEFAULT_ICON = '<path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/>';
+
 export class AssetCard {
   constructor(asset, options = {}) {
     this.asset = asset;
     this.options = options;
   }
 
+  _createIcon(type) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', '28');
+    svg.setAttribute('height', '28');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.5');
+    svg.style.cssText = 'opacity:0.5;display:block;';
+    svg.innerHTML = TYPE_ICONS[type] || DEFAULT_ICON;
+    return svg;
+  }
+
   render() {
     const card = document.createElement('div');
-    card.className = 'ms-asset-card-item';
     card.dataset.id = this.asset.id;
 
     if (this.options.compact) {
       return this._renderCompact(card);
     }
 
+    card.className = 'ms-media-card';
+
+    // --- Thumbnail ---
     const thumb = document.createElement('div');
-    thumb.className = 'ms-asset-card-thumb';
+    thumb.className = 'ms-media-card-thumb';
 
     if (this.asset.type === 'image' && this.asset.filePath) {
       const img = document.createElement('img');
@@ -50,16 +73,13 @@ export class AssetCard {
           .catch(() => { video.style.display = 'none'; overlay.style.display = 'none'; });
       }
     } else {
-      const icons = { image: '\u{1F5BC}', video: '\u{1F3AC}', audio: '\u{1F3B5}' };
-      const iconEl = document.createElement('div');
-      iconEl.style.cssText = 'font-size:28px;opacity:0.4;';
-      iconEl.textContent = icons[this.asset.type] || '\u{1F4C4}';
-      thumb.appendChild(iconEl);
+      thumb.appendChild(this._createIcon(this.asset.type));
     }
     card.appendChild(thumb);
 
+    // --- Info ---
     const info = document.createElement('div');
-    info.className = 'ms-asset-card-info';
+    info.className = 'ms-media-card-info';
 
     const nameEl = document.createElement('div');
     nameEl.className = 'ms-asset-card-name';
@@ -85,22 +105,25 @@ export class AssetCard {
     info.appendChild(meta);
     card.appendChild(info);
 
+    // --- Actions (hover显示，CSS控制) ---
     if (this.options.onDelete) {
+      const actions = document.createElement('div');
+      actions.className = 'ms-item-card-actions';
+
       const delBtn = document.createElement('button');
-      delBtn.className = 'ms-asset-card-del';
+      delBtn.className = 'ms-btn ms-btn-sm ms-btn-icon';
       delBtn.innerHTML = '&#10006;';
       delBtn.title = '删除';
-      delBtn.style.cssText = 'position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,0.5);color:#fff;font-size:11px;cursor:pointer;display:none;align-items:center;justify-content:center;';
-      card.style.position = 'relative';
-      card.addEventListener('mouseenter', () => { delBtn.style.display = 'flex'; });
-      card.addEventListener('mouseleave', () => { delBtn.style.display = 'none'; });
-      delBtn.addEventListener('click', (e) => {
+      delBtn.style.color = 'var(--ms-danger)';
+      delBtn.onclick = (e) => {
         e.stopPropagation();
-        if (window.confirm('确认删除此素材？')) this.options.onDelete(this.asset);
-      });
-      card.appendChild(delBtn);
+        this.options.onDelete(this.asset);
+      };
+      actions.appendChild(delBtn);
+      card.appendChild(actions);
     }
 
+    // --- Click ---
     if (this.options.onClick) {
       card.addEventListener('click', () => this.options.onClick(this.asset));
     }
@@ -176,7 +199,7 @@ export class AssetCard {
       delBtn.title = '删除';
       delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (window.confirm('确认删除此素材？')) this.options.onDelete(this.asset);
+        this.options.onDelete(this.asset);
       });
       card.appendChild(delBtn);
     }
