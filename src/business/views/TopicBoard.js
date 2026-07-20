@@ -66,7 +66,7 @@ export class TopicBoard {
       bn(sep, f);
       const sel = document.createElement('select');
       sel.className = 'ms-form-input';
-      sel.style.cssText = 'width:auto;padding:3px 8px;font-size:12px;';
+      sel.classList.add('ms-input-sm'); sel.style.width = 'auto';
       const oa = document.createElement('option'); oa.value=''; oa.textContent='全部主题'; bn(oa, sel);
       for (const t of this.themes) {
         const o = document.createElement('option'); o.value=t.id; o.textContent=t.name;
@@ -186,8 +186,8 @@ export class TopicBoard {
     const ctL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '内容形态');
     ctRow.append(ctL);
     const sel = document.createElement('select');
-    sel.className = 'ms-form-input'; sel.id = 't-type';
-    sel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
+    sel.className = 'ms-form-input ms-input-sm'; sel.id = 't-type';
+    sel.style.cssText = 'width:auto;';
     for (const [v,label] of [['graphic','图文'], ['video','短视频'], ['text','纯文字']]) {
       const o = document.createElement('option'); o.value=v; o.textContent=label; bn(o, sel);
     }
@@ -230,8 +230,8 @@ export class TopicBoard {
     const ctL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '内容形态');
     ctRow.append(ctL);
     const sel = document.createElement('select');
-    sel.className = 'ms-form-input'; sel.id = 'e-type';
-    sel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
+    sel.className = 'ms-form-input ms-input-sm'; sel.id = 'e-type';
+    sel.style.cssText = 'width:auto;';
     for (const [v,label] of [['graphic','图文'], ['video','短视频'], ['text','纯文字']]) {
       const o = document.createElement('option'); o.value=v; o.textContent=label;
       if (v===t.contentType) o.selected=true;
@@ -244,8 +244,8 @@ export class TopicBoard {
     const stL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '状态');
     stRow.append(stL);
     const stSel = document.createElement('select');
-    stSel.className = 'ms-form-input'; stSel.id = 'e-status';
-    stSel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
+    stSel.className = 'ms-form-input ms-input-sm'; stSel.id = 'e-status';
+    stSel.style.cssText = 'width:auto;';
     for (const [v,label] of [['pending','待处理'],['in_progress','进行中'],['completed','已完成'],['cancelled','已取消']]) {
       const o = document.createElement('option'); o.value=v; o.textContent=label;
       if (v===t.status) o.selected=true;
@@ -283,7 +283,7 @@ export class TopicBoard {
     </div>`);
     m.setFooter(`<div style="display:flex;justify-content:center;gap:8px;">
       <button class="ms-btn ms-btn-sm" id="topic-del-cancel">取消</button>
-      <button class="ms-btn ms-btn-sm" id="topic-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+      <button class="ms-btn ms-btn-sm ms-btn-danger" id="topic-del-confirm">确认删除</button>
     </div>`);
     m.open();
     m.el.querySelector('#topic-del-cancel').onclick = () => m.close();
@@ -335,8 +335,8 @@ function _themeSel(label, id, themes, val) {
   const l = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', label);
   r.append(l);
   const sel = document.createElement('select');
-  sel.className = 'ms-form-input'; sel.id = id;
-  sel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
+  sel.className = 'ms-form-input ms-input-sm'; sel.id = id;
+  sel.style.cssText = 'width:auto;';
   const oa = document.createElement('option'); oa.value=''; oa.textContent='无'; bn(oa, sel);
   for (const t of themes) {
     const o = document.createElement('option'); o.value=t.id; o.textContent=t.name;

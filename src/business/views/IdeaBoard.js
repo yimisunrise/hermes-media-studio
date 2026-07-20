@@ -76,7 +76,7 @@ export class IdeaBoard {
 
       const sel = document.createElement('select');
       sel.className = 'ms-form-input';
-      sel.style.cssText = 'width:auto;padding:3px 8px;font-size:12px;';
+      sel.classList.add('ms-input-sm'); sel.style.width = 'auto';
       const optAll = document.createElement('option');
       optAll.value = ''; optAll.textContent = '全部主题';
       bn(optAll, sel);
@@ -93,7 +93,7 @@ export class IdeaBoard {
     const search = document.createElement('input');
     search.className = 'ms-form-input';
     search.placeholder = '搜索…';
-    search.style.cssText = 'width:160px;padding:3px 8px;font-size:12px;margin-left:auto;';
+    search.classList.add('ms-input-sm'); search.style.cssText = 'width:160px;margin-left:auto;';
     search.oninput = () => { this._searchText = search.value.toLowerCase(); this._renderList(); };
     bn(search, f);
 
@@ -259,8 +259,8 @@ export class IdeaBoard {
     const ctL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '内容形态');
     ctRow.append(ctL);
     const sel = document.createElement('select');
-    sel.className = 'ms-form-input'; sel.id = 'tp-type';
-    sel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
+    sel.className = 'ms-form-input ms-input-sm'; sel.id = 'tp-type';
+    sel.style.cssText = 'width:auto;';
     for (const [v,label] of [['graphic','图文'], ['video','短视频'], ['text','纯文字']]) {
       const o = document.createElement('option'); o.value=v; o.textContent=label; bn(o, sel);
     }
@@ -309,7 +309,7 @@ export class IdeaBoard {
     </div>`);
     m.setFooter(`<div style="display:flex;justify-content:center;gap:8px;">
       <button class="ms-btn ms-btn-sm" id="idea-del-cancel">取消</button>
-      <button class="ms-btn ms-btn-sm" id="idea-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+      <button class="ms-btn ms-btn-sm ms-btn-danger" id="idea-del-confirm">确认删除</button>
     </div>`);
     m.open();
     m.el.querySelector('#idea-del-cancel').onclick = () => m.close();
@@ -378,8 +378,8 @@ function _themeSel(label, id, themes, val) {
   const l = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', label);
   r.append(l);
   const sel = document.createElement('select');
-  sel.className = 'ms-form-input'; sel.id = id;
-  sel.style.cssText = 'width:auto;padding:4px 8px;font-size:13px;';
+  sel.className = 'ms-form-input ms-input-sm'; sel.id = id;
+  sel.style.cssText = 'width:auto;';
   const oa = document.createElement('option'); oa.value=''; oa.textContent='无'; bn(oa, sel);
   for (const t of themes) {
     const o = document.createElement('option'); o.value=t.id; o.textContent=t.name;
