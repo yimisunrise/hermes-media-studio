@@ -251,12 +251,12 @@
 }
 
 .ms-kanban-action-btn {
-  padding: 4px 10px;
+  padding: var(--ms-input-sm-padding);
   border: 1px solid var(--ms-border);
-  border-radius: var(--ms-radius-sm);
+  border-radius: var(--ms-input-radius);
   background: transparent;
   color: var(--ms-text-secondary);
-  font-size: 12px;
+  font-size: var(--ms-input-sm-font-size);
   cursor: pointer;
   transition: var(--ms-transition);
 }
@@ -573,12 +573,12 @@
 
 .ms-data-entry-field input {
   width: 100%;
-  padding: 6px 8px;
+  padding: var(--ms-input-padding);
   border: 1px solid var(--ms-border);
-  border-radius: var(--ms-radius-sm);
+  border-radius: var(--ms-input-radius);
   background: var(--ms-bg-primary);
   color: var(--ms-text-primary);
-  font-size: 13px;
+  font-size: var(--ms-input-font-size);
 }
 
 /* === Workflow Cards === */
@@ -816,12 +816,12 @@
 .ms-db-edit-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 3px 6px;
+  padding: var(--ms-input-sm-padding);
   border: 1px solid var(--ms-border);
-  border-radius: 3px;
+  border-radius: var(--ms-input-radius);
   background: var(--ms-bg-primary);
   color: var(--ms-text-primary);
-  font-size: 13px;
+  font-size: var(--ms-input-font-size);
   font-family: var(--ms-font);
 }
 
