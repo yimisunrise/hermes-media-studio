@@ -178,6 +178,11 @@ export class TasksView {
 
     const actionsEl = document.createElement('div');
     actionsEl.className = 'ms-item-card-actions';
+    const editBtn = document.createElement('button');
+    editBtn.className = 'ms-btn ms-btn-sm';
+    editBtn.textContent = '编辑';
+    editBtn.addEventListener('click', (e) => { e.stopPropagation(); this._editTask(task); });
+    actionsEl.appendChild(editBtn);
     const delBtn = document.createElement('button');
     delBtn.className = 'ms-btn ms-btn-sm ms-btn-danger';
     delBtn.textContent = '删除';
@@ -215,80 +220,109 @@ export class TasksView {
     };
   }
 
-  _showCreateForm() {
-    const modal = new Modal({ title: '新建任务', size: 'md' });
-    modal.setBody(`
+  _taskFormHTML(readonlyTypeAndMode) {
+    const typeField = readonlyTypeAndMode
+      ? '<span style="display:inline-block;padding:6px 12px;font-size:13px;color:var(--ms-text-secondary,#a0a0a0);background:var(--ms-bg-primary,#1a1a2e);border-radius:4px;" id="tv-form-type-val"></span>'
+      : '<select class="ms-select" id="tv-form-type"><option value="media">素材任务</option><option value="copywriting">文案任务</option></select>';
+    const modeField = readonlyTypeAndMode
+      ? '<span style="display:inline-block;padding:6px 12px;font-size:13px;color:var(--ms-text-secondary,#a0a0a0);background:var(--ms-bg-primary,#1a1a2e);border-radius:4px;" id="tv-form-mode-val"></span>'
+      : '<select class="ms-select" id="tv-form-mode"><option value="manual">手工</option><option value="agent">Agent</option></select>';
+
+    const statusRow = readonlyTypeAndMode ? `
+      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
+        <label class="ms-form-label">状态</label>
+        <select class="ms-select" id="tv-form-status">
+          ${Object.entries(STATUS_LABELS).map(([v, label]) =>
+            `<option value="${v}">${label}</option>`
+          ).join('')}
+        </select>
+      </div>` : '';
+
+    const promptHeader = `<div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="ms-form-label">创作简报</label>
+          <div style="position:relative">
+            <button class="ms-btn ms-btn-sm" id="tv-form-template-btn" type="button">选择模板</button>
+            <div class="ms-template-selector-panel" id="tv-form-template-panel" style="display:none;position:absolute;top:100%;right:0;z-index:1000;min-width:280px;max-height:300px;overflow-y:auto;background:var(--bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
+              <div class="ms-template-selector-list" id="tv-form-template-list" style="padding:8px"></div>
+              <div class="ms-template-selector-clear" id="tv-form-template-clear" style="padding:8px 12px;border-top:1px solid var(--border,#333);color:var(--text-secondary,#a0a0a0);cursor:pointer;font-size:12px">不使用模板</div>
+            </div>
+          </div>
+         </div>`;
+
+    return `
+      <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
+        <label class="ms-form-label">标题</label>
+        <input class="ms-form-input" id="tv-form-title" placeholder="输入任务标题..." />
+      </div>
       <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
         <label class="ms-form-label">关联选题 *</label>
-        <select class="ms-select" id="media-studio-task-create-topic"><option value="">加载中...</option></select>
+        <select class="ms-select" id="tv-form-topic"><option value="">加载中...</option></select>
       </div>
       <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
         <label class="ms-form-label">任务类型</label>
-        <select class="ms-select" id="tv-type">
-          <option value="media">素材任务</option>
-          <option value="copywriting">文案任务</option>
-        </select>
+        ${typeField}
       </div>
       <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
         <label class="ms-form-label">任务模式</label>
-        <select class="ms-select" id="tv-mode">
-          <option value="manual">手工</option>
-          <option value="agent">Agent</option>
-        </select>
+        ${modeField}
       </div>
       <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <label class="ms-form-label">创作简报</label>
-          <div style="position:relative">
-            <button class="ms-btn ms-btn-sm" id="media-studio-template-selector-btn" type="button">📋 选择模板</button>
-            <div class="ms-template-selector-panel" id="media-studio-template-selector-panel" style="display:none;position:absolute;top:100%;right:0;z-index:1000;min-width:280px;max-height:300px;overflow-y:auto;background:var(--bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
-              <div class="ms-template-selector-list" id="media-studio-template-selector-list" style="padding:8px"></div>
-              <div class="ms-template-selector-clear" id="media-studio-template-selector-clear" style="padding:8px 12px;border-top:1px solid var(--border,#333);color:var(--text-secondary,#a0a0a0);cursor:pointer;font-size:12px">不使用模板</div>
-            </div>
-          </div>
-        </div>
-        <textarea class="ms-form-textarea" id="tv-prompt" placeholder="输入任务简报内容..."></textarea>
+        ${promptHeader}
+        <textarea class="ms-form-textarea" id="tv-form-prompt" placeholder="输入任务简报内容..."></textarea>
       </div>
-    `);
-    modal.setFooter(`
-      <button class="ms-btn" id="tv-cancel">取消</button>
-      <button class="ms-btn ms-btn-primary" id="tv-submit">创建</button>
-    `);
-    modal.open();
+      ${statusRow}
+    `;
+  }
 
-    modal.el.querySelector('#tv-cancel').onclick = () => modal.close();
-    modal.el.querySelector('#tv-prompt').focus();
+  _loadFormTopics(selectEl, selectedId) {
+    (async () => {
+      try {
+        const topics = await repo(this.api, this._sr, 'topics').find({ sort: '-createdAt' });
+        const list = topics.records || [];
+        selectEl.innerHTML = '<option value="">-- 请选择选题 --</option>';
+        for (const t of list) {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = t.title;
+          if (t.id === selectedId) opt.selected = true;
+          selectEl.appendChild(opt);
+        }
+      } catch (e) {
+        selectEl.innerHTML = '<option value="">加载失败</option>';
+      }
+    })();
+  }
 
-    const templateBtn = modal.el.querySelector('#media-studio-template-selector-btn');
-    const templatePanel = modal.el.querySelector('#media-studio-template-selector-panel');
-    const templateList = modal.el.querySelector('#media-studio-template-selector-list');
-    const templateClear = modal.el.querySelector('#media-studio-template-selector-clear');
-    const promptTextarea = modal.el.querySelector('#tv-prompt');
-    const _tmplBtnInitText = templateBtn.textContent;
+  _initTemplateSelector(modal) {
+    const templateBtn = modal.el.querySelector('#tv-form-template-btn');
+    const templatePanel = modal.el.querySelector('#tv-form-template-panel');
+    const templateList = modal.el.querySelector('#tv-form-template-list');
+    const templateClear = modal.el.querySelector('#tv-form-template-clear');
+    const promptTextarea = modal.el.querySelector('#tv-form-prompt');
+    const initBtnText = templateBtn.textContent;
 
-    const _closeTemplatePanel = () => { templatePanel.style.display = 'none'; };
+    const closePanel = () => { templatePanel.style.display = 'none'; };
 
-    const _loadTemplates = async () => {
+    const loadTemplates = async () => {
       if (templateList.dataset.loaded === '1') return;
-      templateList.innerHTML = '<div class="ms-template-selector-loading" style="padding:8px;color:var(--text-secondary,#a0a0a0);font-size:12px">加载模板中...</div>';
+      templateList.innerHTML = '<div style="padding:8px;color:var(--text-secondary,#a0a0a0);font-size:12px">加载模板中...</div>';
       try {
         const tplRepo = await templateRepo(this.api, this._sr);
         const result = await tplRepo.find({ filter: { type: 'brief' }, sort: '-createdAt' });
         const templates = result.records || [];
         templateList.innerHTML = '';
         if (templates.length === 0) {
-          templateList.innerHTML = '<div class="ms-template-selector-empty" style="padding:8px;color:var(--text-secondary,#a0a0a0);font-size:12px">暂无模板</div>';
+          templateList.innerHTML = '<div style="padding:8px;color:var(--text-secondary,#a0a0a0);font-size:12px">暂无模板</div>';
         } else {
           for (const tpl of templates) {
             const item = document.createElement('div');
-            item.className = 'ms-template-selector-item';
             item.style.cssText = 'padding:8px 12px;cursor:pointer;border-radius:2px';
             item.addEventListener('mouseenter', () => { item.style.background = 'var(--hover,#ffffff0a)'; });
             item.addEventListener('mouseleave', () => { item.style.background = ''; });
             item.addEventListener('click', () => {
               promptTextarea.value = tpl.content || '';
-              templateBtn.textContent = '📋 ' + tpl.name;
-              _closeTemplatePanel();
+              templateBtn.textContent = '选择模板 ' + tpl.name;
+              closePanel();
             });
             const nameEl = document.createElement('div');
             nameEl.style.cssText = 'font-size:13px;font-weight:500;color:var(--text,#e0e0e0)';
@@ -305,71 +339,67 @@ export class TasksView {
         }
         templateList.dataset.loaded = '1';
       } catch (e) {
-        templateList.innerHTML = '<div class="ms-template-selector-error" style="padding:8px;color:var(--danger,#e74c3c);font-size:12px">加载失败</div>';
+        templateList.innerHTML = '<div style="padding:8px;color:var(--danger,#e74c3c);font-size:12px">加载失败</div>';
       }
     };
 
     templateBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (templatePanel.style.display === 'block') {
-        _closeTemplatePanel();
+        closePanel();
         return;
       }
-      _loadTemplates();
+      loadTemplates();
       templatePanel.style.display = 'block';
     });
 
     templateClear.addEventListener('click', () => {
       promptTextarea.value = '';
-      templateBtn.textContent = _tmplBtnInitText;
-      _closeTemplatePanel();
+      templateBtn.textContent = initBtnText;
+      closePanel();
     });
 
-    const _onDocClickClose = (e) => {
+    const onDocClick = (e) => {
       if (!templatePanel.contains(e.target) && e.target !== templateBtn) {
-        _closeTemplatePanel();
+        closePanel();
       }
     };
-    document.addEventListener('click', _onDocClickClose);
+    document.addEventListener('click', onDocClick);
+  }
 
-    const topicSelect = modal.el.querySelector('#media-studio-task-create-topic');
-    (async () => {
-      try {
-        const topics = await repo(this.api, this._sr, 'topics').find({ sort: '-createdAt' });
-        const list = topics.records || [];
-        topicSelect.innerHTML = '<option value="">-- 请选择选题 --</option>';
-        for (const t of list) {
-          const opt = document.createElement('option');
-          opt.value = t.id;
-          opt.textContent = t.title;
-          topicSelect.appendChild(opt);
-        }
-      } catch (e) {
-        topicSelect.innerHTML = '<option value="">加载失败</option>';
-      }
-    })();
+  _showCreateForm() {
+    const modal = new Modal({ title: '新建任务', size: 'md' });
+    modal.setBody(this._taskFormHTML(false));
+    modal.setFooter(`
+      <button class="ms-btn" id="tv-form-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary" id="tv-form-submit">创建</button>
+    `);
+    modal.open();
 
-    modal.el.querySelector('#tv-submit').addEventListener('click', async () => {
-      const submitBtn = modal.el.querySelector('#tv-submit');
+    modal.el.querySelector('#tv-form-cancel').onclick = () => modal.close();
+    modal.el.querySelector('#tv-form-prompt').focus();
+
+    this._initTemplateSelector(modal);
+    this._loadFormTopics(modal.el.querySelector('#tv-form-topic'));
+
+    modal.el.querySelector('#tv-form-submit').addEventListener('click', async () => {
+      const submitBtn = modal.el.querySelector('#tv-form-submit');
       submitBtn.disabled = true;
       submitBtn.textContent = '创建中...';
       try {
-        const topicId = topicSelect.value || '';
+        const topicId = modal.el.querySelector('#tv-form-topic').value || '';
         if (!topicId) {
           alert('请选择关联选题');
           submitBtn.disabled = false;
           submitBtn.textContent = '创建';
           return;
         }
-        const typeSelect = modal.el.querySelector('#tv-type');
-        const modeSelect = modal.el.querySelector('#tv-mode');
-        const promptTextarea = modal.el.querySelector('#tv-prompt');
         const record = await this._ts().create({
-          topicId: topicId,
-          taskType: typeSelect.value,
-          mode: modeSelect.value,
-          prompt: promptTextarea.value,
-          title: promptTextarea.value.slice(0, 80) || '新建任务',
+          topicId,
+          taskType: modal.el.querySelector('#tv-form-type').value,
+          mode: modal.el.querySelector('#tv-form-mode').value,
+          prompt: modal.el.querySelector('#tv-form-prompt').value.trim(),
+          title: modal.el.querySelector('#tv-form-title').value.trim() || '新建任务',
           status: 'pending'
         });
         modal.close();
@@ -383,6 +413,47 @@ export class TasksView {
         submitBtn.disabled = false;
         submitBtn.textContent = '创建';
         alert('创建失败: ' + e.message);
+      }
+    });
+  }
+
+  _editTask(task) {
+    const modal = new Modal({ title: '编辑任务', size: 'md' });
+    modal.setBody(this._taskFormHTML(true));
+    modal.setFooter(`
+      <button class="ms-btn" id="tv-form-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary" id="tv-form-submit">保存</button>
+    `);
+    modal.open();
+
+    modal.el.querySelector('#tv-form-title').value = task.title || '';
+    modal.el.querySelector('#tv-form-prompt').value = task.prompt || '';
+    modal.el.querySelector('#tv-form-type-val').textContent = TYPE_LABELS[task.taskType] || task.taskType;
+    modal.el.querySelector('#tv-form-mode-val').textContent = MODE_LABELS[task.mode] || task.mode;
+    modal.el.querySelector('#tv-form-status').value = task.status;
+
+    modal.el.querySelector('#tv-form-cancel').onclick = () => modal.close();
+    this._initTemplateSelector(modal);
+    this._loadFormTopics(modal.el.querySelector('#tv-form-topic'), task.topicId);
+
+    modal.el.querySelector('#tv-form-submit').addEventListener('click', async () => {
+      const submitBtn = modal.el.querySelector('#tv-form-submit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '保存中...';
+      try {
+        const changes = {
+          title: modal.el.querySelector('#tv-form-title').value.trim() || task.title,
+          prompt: modal.el.querySelector('#tv-form-prompt').value.trim(),
+          topicId: modal.el.querySelector('#tv-form-topic').value || '',
+          status: modal.el.querySelector('#tv-form-status').value,
+        };
+        await this._ts().update(task.id, changes);
+        modal.close();
+        await this._loadAndRender();
+      } catch (e) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '保存';
+        alert('保存失败: ' + e.message);
       }
     });
   }
