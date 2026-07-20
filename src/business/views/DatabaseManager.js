@@ -391,15 +391,15 @@ export class DatabaseManager {
     const isNew = !existing;
     const modal = new Modal({ title: isNew ? '新建数据库' : '编辑数据库', size: 'md' });
     modal.setBody(`
-      <div class="ms-db-form-field">
-        <label class="ms-db-form-label">数据库 ID</label>
+      <div class="ms-form-group">
+        <label>数据库 ID</label>
         <input class="ms-form-input" id="ms-db-form-db-id" type="text"
           value="${isNew ? '' : this._esc(existing.id)}"
           ${isNew ? '' : 'disabled'}
           placeholder="英文、数字、下划线" />
       </div>
-      <div class="ms-db-form-field">
-        <label class="ms-db-form-label">数据库名称</label>
+      <div class="ms-form-group">
+        <label>数据库名称</label>
         <input class="ms-form-input" id="ms-db-form-db-label" type="text"
           value="${isNew ? '' : this._esc(existing.label || '')}"
           placeholder="例如：主库" />
@@ -460,7 +460,7 @@ export class DatabaseManager {
 
     let fieldRowsHtml = '';
     const rowFor = (f, idx) => `
-      <div class="ms-db-form-field-row">
+      <div class="ms-form-group-inline">
         <input class="ms-form-input ms-db-field-id" type="text" value="${this._esc(f.id || '')}" placeholder="字段 ID" style="width:120px" />
         <input class="ms-form-input ms-db-field-label" type="text" value="${this._esc(f.label || '')}" placeholder="标签" style="width:120px" />
         <select class="ms-form-input ms-db-field-type" style="width:110px">
@@ -477,21 +477,21 @@ export class DatabaseManager {
     }
 
     modal.setBody(`
-      <div class="ms-db-form-field">
-        <label class="ms-db-form-label">表 ID</label>
+      <div class="ms-form-group">
+        <label>表 ID</label>
         <input class="ms-form-input" id="ms-db-form-table-id" type="text"
           value="${isNew ? '' : this._esc(existing.id)}"
           ${isNew ? '' : 'disabled'}
           placeholder="英文、数字、下划线" />
       </div>
-      <div class="ms-db-form-field">
-        <label class="ms-db-form-label">表名称</label>
+      <div class="ms-form-group">
+        <label>表名称</label>
         <input class="ms-form-input" id="ms-db-form-table-label" type="text"
           value="${isNew ? '' : this._esc(existing.label || '')}"
           placeholder="例如：文章" />
       </div>
-      <div class="ms-db-form-field">
-        <label class="ms-db-form-label">字段定义</label>
+      <div class="ms-form-group">
+        <label>字段定义</label>
         <div class="ms-db-field-list" id="ms-db-field-list">
           ${fieldRowsHtml}
         </div>
@@ -511,7 +511,7 @@ export class DatabaseManager {
     const fieldList = modal.el.querySelector('#ms-db-field-list');
     modal.el.querySelector('#ms-db-field-add').addEventListener('click', () => {
       const row = document.createElement('div');
-      row.className = 'ms-db-form-field-row';
+      row.className = 'ms-form-group-inline';
       row.innerHTML = `
         <input class="ms-form-input ms-db-field-id" type="text" placeholder="字段 ID" style="width:120px" />
         <input class="ms-form-input ms-db-field-label" type="text" placeholder="标签" style="width:120px" />
@@ -526,7 +526,7 @@ export class DatabaseManager {
 
     modal.el.querySelectorAll('.ms-db-field-remove').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const row = e.target.closest('.ms-db-form-field-row');
+        const row = e.target.closest('.ms-form-group-inline');
         if (row) row.remove();
       });
     });
@@ -549,7 +549,7 @@ export class DatabaseManager {
       }
 
       const fields = [];
-      modal.el.querySelectorAll('.ms-db-form-field-row').forEach(row => {
+      modal.el.querySelectorAll('.ms-form-group-inline').forEach(row => {
         const fid = (row.querySelector('.ms-db-field-id').value || '').trim();
         const flabel = (row.querySelector('.ms-db-field-label').value || '').trim();
         const ftype = row.querySelector('.ms-db-field-type').value;
@@ -698,8 +698,8 @@ export class DatabaseManager {
     (fields.length ? fields : [{ id: 'id', label: 'ID', type: 'string' }]).forEach(f => {
       const val = existing ? existing[f.id] : '';
       fieldsHtml += `
-        <div class="ms-db-form-field">
-          <label class="ms-db-form-label">${this._esc(f.label || f.id)}</label>
+        <div class="ms-form-group">
+          <label>${this._esc(f.label || f.id)}</label>
           ${this._renderEditField(f.id, val, f)}
         </div>
       `;

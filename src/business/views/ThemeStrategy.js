@@ -73,9 +73,7 @@ export class ThemeStrategy {
     const card = document.createElement('div');
     card.className = 'ms-item-card';
 
-    const swatch = document.createElement('div');
-    swatch.style.cssText = `width:100%;height:4px;border-radius:2px;margin-bottom:10px;background:${theme.color || '#e94560'};`;
-    card.appendChild(swatch);
+    card.style.borderLeft = `4px solid ${theme.color || '#e94560'}`;
 
     const name = document.createElement('div');
     name.style.fontWeight = '600';
@@ -209,7 +207,7 @@ export class ThemeStrategy {
     body.appendChild(hint);
 
     const m = new Modal({
-      title: isEdit ? '编辑主题' : '新增主题',
+      title: isEdit ? '编辑主题' : '新建主题',
       size: 'md',
       container: this._container,
     });
