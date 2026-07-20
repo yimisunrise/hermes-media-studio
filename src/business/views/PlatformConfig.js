@@ -165,15 +165,16 @@ export class PlatformConfig {
     const configRow = this._formField('发布配置 (JSON)', 'textarea', platform ? JSON.stringify(platform.publishConfig || {}, null, 2) : '', '{\n  "defaultTags": ["tag1"]\n}');
     body.appendChild(configRow);
 
-    const footer = document.createElement('div');
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'ms-btn ms-btn-sm';
-    cancelBtn.textContent = '取消';
-    footer.appendChild(cancelBtn);
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
-    saveBtn.textContent = isEdit ? '保存' : '添加';
-    saveBtn.addEventListener('click', async () => {
+    const m = new Modal({ title: isEdit ? '编辑平台' : '添加平台', size: 'md' });
+    m.setBody(body);
+    m.setFooter(`
+      <button class="ms-btn ms-btn-sm" id="pc-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary ms-btn-sm" id="pc-save">${isEdit ? '保存' : '添加'}</button>
+    `);
+    m.open();
+
+    m.el.querySelector('#pc-cancel').addEventListener('click', () => m.close());
+    m.el.querySelector('#pc-save').addEventListener('click', async () => {
       const data = {
         name: nameInput.value.trim(),
         type: typeSelect.value,
@@ -196,13 +197,6 @@ export class PlatformConfig {
         this._renderList();
       } catch (e) { console.error('保存平台失败', e); }
     });
-    footer.appendChild(saveBtn);
-
-    const m = new Modal({ title: isEdit ? '编辑平台' : '添加平台', size: 'md' });
-    m.setBody(body);
-    m.setFooter(footer);
-    m.open();
-    cancelBtn.addEventListener('click', () => m.close());
     setTimeout(() => nameInput.focus(), 100);
   }
 
@@ -211,16 +205,16 @@ export class PlatformConfig {
     body.style.cssText = 'padding:20px 18px;text-align:center;';
     body.innerHTML = `<div style="font-size:16px;margin-bottom:12px;">确认删除平台「${this._escapeHtml(platform.name)}」？</div><div style="font-size:12px;color:var(--ms-text-secondary);">已有发布包中的引用不受影响，已禁用的平台建议保留。</div>`;
 
-    const footer = document.createElement('div');
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'ms-btn ms-btn-sm';
-    cancelBtn.textContent = '取消';
-    footer.appendChild(cancelBtn);
-    const delBtn = document.createElement('button');
-    delBtn.className = 'ms-btn ms-btn-sm';
-    delBtn.style.cssText = 'padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;';
-    delBtn.textContent = '确认删除';
-    delBtn.addEventListener('click', async () => {
+    const m = new Modal({ size: 'sm' });
+    m.setBody(body);
+    m.setFooter(`
+      <button class="ms-btn ms-btn-sm" id="pc-del-cancel">取消</button>
+      <button class="ms-btn ms-btn-sm" id="pc-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+    `);
+    m.open();
+
+    m.el.querySelector('#pc-del-cancel').addEventListener('click', () => m.close());
+    m.el.querySelector('#pc-del-confirm').addEventListener('click', async () => {
       try {
         await this._repo().delete(platform.id);
         await this._load();
@@ -228,13 +222,6 @@ export class PlatformConfig {
       } catch (e) { console.error('删除平台失败', e); }
       m.close();
     });
-    footer.appendChild(delBtn);
-
-    const m = new Modal({ size: 'sm' });
-    m.setBody(body);
-    m.setFooter(footer);
-    m.open();
-    cancelBtn.addEventListener('click', () => m.close());
   }
 
   _formField(label, type, value, placeholder) {

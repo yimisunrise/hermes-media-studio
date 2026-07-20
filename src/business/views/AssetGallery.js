@@ -44,7 +44,7 @@ export class AssetGallery {
       .ms-asset-name { font-size: 13px; color: var(--ms-text-primary, #e0e0e0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
       .ms-asset-meta { font-size: 11px; color: var(--ms-text-secondary, #a0a0a0); display: flex; gap: 8px; }
       .ms-asset-type-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; background: var(--ms-bg-primary, #1a1a2e); color: var(--ms-accent, #e94560); border: 1px solid var(--ms-border, #2a2a4a); }
-      .ms-asset-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px; color: var(--ms-text-secondary, #a0a0a0); gap: 8px; }
+      .ms-asset-empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px; color: var(--ms-text-secondary, #a0a0a0); gap: 8px; text-align: center; }
       .ms-asset-upload-input { display: none; }
     `;
     document.head.appendChild(style);
@@ -213,6 +213,7 @@ export class AssetGallery {
     }
 
     modal.setBody(bodyHtml);
+    modal.setFooter(footerHtml);
     modal.open();
 
     // Async load preview image/video via API
@@ -252,8 +253,6 @@ export class AssetGallery {
     }
     footerHtml += `<button class="ms-btn" style="color:var(--ms-danger,#e74c3c);border-color:var(--ms-danger,#e74c3c);" id="ag-delete">删除</button>
       <button class="ms-btn ms-btn-primary" id="ag-close">关闭</button>`;
-    modal.setFooter(footerHtml);
-
     modal.el.querySelector('#ag-close').onclick = () => modal.close();
     if (asset.filePath) {
       modal.el.querySelector('#ag-download').onclick = async () => {

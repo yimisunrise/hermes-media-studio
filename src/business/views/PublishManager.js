@@ -271,16 +271,16 @@ export class PublishManager {
 
     body.appendChild(timingRow);
 
-    const footer = document.createElement('div');
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'ms-btn ms-btn-sm';
-    cancelBtn.textContent = '取消';
-    footer.appendChild(cancelBtn);
+    const m = new Modal({ title: '创建发布包', size: 'md' });
+    m.setBody(body);
+    m.setFooter(`
+      <button class="ms-btn ms-btn-sm" id="pm-create-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary ms-btn-sm" id="pm-create-submit">创建</button>
+    `);
+    m.open();
 
-    const createBtn = document.createElement('button');
-    createBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
-    createBtn.textContent = '创建';
-    createBtn.addEventListener('click', async () => {
+    m.el.querySelector('#pm-create-cancel').addEventListener('click', () => m.close());
+    m.el.querySelector('#pm-create-submit').addEventListener('click', async () => {
       const contentId = contentSelect.value;
       if (!contentId) {
         contentSelect.style.borderColor = 'var(--ms-danger)';
@@ -336,13 +336,6 @@ export class PublishManager {
         console.error('创建发布包失败', e);
       }
     });
-    footer.appendChild(createBtn);
-
-    const m = new Modal({ title: '创建发布包', size: 'md' });
-    m.setBody(body);
-    m.setFooter(footer);
-    m.open();
-    cancelBtn.addEventListener('click', () => m.close());
   }
 
   async _openDetailModal(pkg) {
@@ -475,31 +468,23 @@ export class PublishManager {
       }
     }
 
-    // Footer
-    const footer = document.createElement('div');
-
-    if (pkg.status === 'scheduled' || pkg.status === 'draft') {
-      const publishBtn = document.createElement('button');
-      publishBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
-      publishBtn.style.marginRight = '8px';
-      publishBtn.textContent = '发布';
-      publishBtn.addEventListener('click', async () => {
-        m.close();
-        await this._handlePublishNow(pkg);
-      });
-      footer.appendChild(publishBtn);
-    }
-
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'ms-btn ms-btn-sm';
-    closeBtn.textContent = '关闭';
-    closeBtn.addEventListener('click', () => m.close());
-    footer.appendChild(closeBtn);
+    const canPublish = pkg.status === 'scheduled' || pkg.status === 'draft';
 
     const m = new Modal({ title: '发布包详情', size: 'lg' });
     m.setBody(body);
-    m.setFooter(footer);
+    m.setFooter(`
+      ${canPublish ? '<button class="ms-btn ms-btn-primary ms-btn-sm" id="pm-detail-publish" style="margin-right:8px">发布</button>' : ''}
+      <button class="ms-btn ms-btn-sm" id="pm-detail-close">关闭</button>
+    `);
     m.open();
+
+    if (canPublish) {
+      m.el.querySelector('#pm-detail-publish').addEventListener('click', async () => {
+        m.close();
+        await this._handlePublishNow(pkg);
+      });
+    }
+    m.el.querySelector('#pm-detail-close').addEventListener('click', () => m.close());
   }
 
   async _handlePublishNow(pkg) {
@@ -591,16 +576,16 @@ export class PublishManager {
     successRadio.addEventListener('change', () => { errorWrapper.style.display = 'none'; });
     failRadio.addEventListener('change', () => { errorWrapper.style.display = ''; });
 
-    const footer = document.createElement('div');
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'ms-btn ms-btn-sm';
-    cancelBtn.textContent = '取消';
-    footer.appendChild(cancelBtn);
+    const m = new Modal({ title: '标记发布结果', size: 'sm' });
+    m.setBody(body);
+    m.setFooter(`
+      <button class="ms-btn ms-btn-sm" id="pm-mark-cancel">取消</button>
+      <button class="ms-btn ms-btn-primary ms-btn-sm" id="pm-mark-save">保存</button>
+    `);
+    m.open();
 
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
-    saveBtn.textContent = '保存';
-    saveBtn.addEventListener('click', async () => {
+    m.el.querySelector('#pm-mark-cancel').addEventListener('click', () => m.close());
+    m.el.querySelector('#pm-mark-save').addEventListener('click', async () => {
       const isSuccess = successRadio.checked;
       const url = urlInput.value.trim() || null;
 
@@ -633,13 +618,6 @@ export class PublishManager {
         console.error('保存发布结果失败', e);
       }
     });
-    footer.appendChild(saveBtn);
-
-    const m = new Modal({ title: '标记发布结果', size: 'sm' });
-    m.setBody(body);
-    m.setFooter(footer);
-    m.open();
-    cancelBtn.addEventListener('click', () => m.close());
   }
 
   async _summarizePackageStatus(pkg) {
