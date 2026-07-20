@@ -1,6 +1,7 @@
 import { empty } from '../../framework/utils/dom.js';
 import { repo } from '../data/index.js';
 import { Modal } from '../../framework/ui/Modal.js';
+import { formGroup, input, textarea, select, themeSelect } from './components/FormBuilder.js';
 
 export class IdeaBoard {
   constructor({ api, state, schemaRegistry }) {
@@ -213,13 +214,13 @@ export class IdeaBoard {
 
   _openDetail(idea) {
     const isEdit = !!idea;
-    const m = new Modal({ title: `${isEdit ? '编辑' : '详细'}灵感`, size: 'md' });
+    const m = new Modal({ title: `${isEdit ? '编辑' : '新建'}灵感`, size: 'md' });
     const b = ce('div', 'padding:16px 18px;');
-    b.append(_fld('标题 *', 'idea-title', '一句话描述这个灵感', idea?.title||''));
-    b.append(_fldArea('详细描述', 'idea-summary', '补充更多细节…', idea?.summary||''));
-    b.append(_themeSel('关联主题', 'idea-theme', this.themes, idea?.themeId||''));
-    b.append(_fld('标签（英文逗号分隔）', 'idea-tags', '如：科技, 设计', idea?.tags?.join(', ')||''));
-    b.append(_fld('参考链接（每行一个）', 'idea-links', 'https://...', idea?.refLinks?.join('\n')||'', true));
+    b.append(formGroup('标题 *', input({ id: 'idea-title', placeholder: '一句话描述这个灵感', value: idea?.title || '' })));
+    b.append(formGroup('详细描述', textarea({ id: 'idea-summary', placeholder: '补充更多细节…', value: idea?.summary || '', minHeight: '80px' })));
+    b.append(formGroup('关联主题', themeSelect({ id: 'idea-theme', themes: this.themes, value: idea?.themeId || '' })));
+    b.append(formGroup('标签（英文逗号分隔）', input({ id: 'idea-tags', placeholder: '如：科技, 设计', value: idea?.tags?.join(', ') || '' })));
+    b.append(formGroup('参考链接（每行一个）', textarea({ id: 'idea-links', placeholder: 'https://...', value: idea?.refLinks?.join('\n') || '', minHeight: '60px' })));
     m.setBody(b);
     m.setFooter(`<button class="ms-btn ms-btn-sm" id="idea-cancel">取消</button>
       <button class="ms-btn ms-btn-primary ms-btn-sm" id="idea-save">${isEdit ? '保存' : '创建'}</button>`);
@@ -253,20 +254,13 @@ export class IdeaBoard {
     const src = ce('div', 'font-size:12px;color:var(--ms-text-secondary);margin-bottom:12px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:var(--ms-radius-sm);');
     src.innerHTML = `来源灵感：<strong>${idea.title}</strong>`;
     b.append(src);
-    b.append(_fld('选题标题 *', 'tp-title', '', name));
-    b.append(_fld('截止日期', 'tp-due', 'YYYY-MM-DD', ''));
-    const ctRow = ce('div', 'margin-bottom:14px;');
-    const ctL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '内容形态');
-    ctRow.append(ctL);
-    const sel = document.createElement('select');
-    sel.className = 'ms-form-input ms-input-sm'; sel.id = 'tp-type';
-    sel.style.cssText = 'width:auto;';
-    for (const [v,label] of [['graphic','图文'], ['video','短视频'], ['text','纯文字']]) {
-      const o = document.createElement('option'); o.value=v; o.textContent=label; bn(o, sel);
-    }
-    ctRow.append(sel);
-    b.append(ctRow);
-    b.append(_themeSel('关联主题', 'tp-theme', this.themes, idea.themeId||''));
+    b.append(formGroup('选题标题 *', input({ id: 'tp-title', value: name })));
+    b.append(formGroup('内容形态', select({
+      id: 'tp-type',
+      styleAutoWidth: true,
+      options: [['graphic','图文'], ['video','短视频'], ['text','纯文字']].map(([v, text]) => ({ value: v, text }))
+    })));
+    b.append(formGroup('关联主题', themeSelect({ id: 'tp-theme', themes: this.themes, value: idea.themeId || '' })));
     m.setBody(b);
     m.setFooter(`<button class="ms-btn ms-btn-sm" id="tp-cancel">取消</button>
       <button class="ms-btn ms-btn-primary ms-btn-sm" id="tp-create">创建选题</button>`);
@@ -280,7 +274,6 @@ export class IdeaBoard {
           title, ideaId: idea.id,
           themeId: _q('#tp-theme')?.value || idea.themeId || '',
           contentType: _q('#tp-type')?.value || 'graphic',
-          dueDate: _q('#tp-due')?.value?.trim() || null,
           status: 'draft',
         });
         idea.status = 'used';
@@ -346,47 +339,5 @@ function btn(label, kind, onClick, title) {
   el.className = `ms-btn${kind==='primary'?' ms-btn-primary':''} ms-btn-sm`;
   el.onclick = onClick;
   return el;
-}
-function _fld(label, id, ph, val, multi) {
-  const r = ce('div', 'margin-bottom:14px;');
-  const l = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', label);
-  r.append(l);
-  if (multi) {
-    const ta = document.createElement('textarea');
-    ta.className = 'ms-form-textarea'; ta.id = id; ta.placeholder = ph; ta.style.minHeight = '60px';
-    ta.value = val||'';
-    r.append(ta);
-  } else {
-    const inp = document.createElement('input');
-    inp.className = 'ms-form-input'; inp.id = id; inp.placeholder = ph; inp.value = val||'';
-    r.append(inp);
-  }
-  return r;
-}
-function _fldArea(label, id, ph, val) {
-  const r = ce('div', 'margin-bottom:14px;');
-  const l = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', label);
-  r.append(l);
-  const ta = document.createElement('textarea');
-  ta.className = 'ms-form-textarea'; ta.id = id; ta.placeholder = ph; ta.style.minHeight = '80px';
-  ta.value = val||'';
-  r.append(ta);
-  return r;
-}
-function _themeSel(label, id, themes, val) {
-  const r = ce('div', 'margin-bottom:14px;');
-  const l = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', label);
-  r.append(l);
-  const sel = document.createElement('select');
-  sel.className = 'ms-form-input ms-input-sm'; sel.id = id;
-  sel.style.cssText = 'width:auto;';
-  const oa = document.createElement('option'); oa.value=''; oa.textContent='无'; bn(oa, sel);
-  for (const t of themes) {
-    const o = document.createElement('option'); o.value=t.id; o.textContent=t.name;
-    if (t.id===val) o.selected=true;
-    bn(o, sel);
-  }
-  r.append(sel);
-  return r;
 }
 function _q(id) { return document.querySelector(id); }

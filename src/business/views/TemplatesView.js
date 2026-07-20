@@ -2,6 +2,7 @@ import { empty } from '../../framework/utils/dom.js';
 import { formatDateTime } from '../../framework/utils/format.js';
 import { templateRepo } from '../data/index.js';
 import { Modal } from '../../framework/ui/Modal.js';
+import { formGroup, input, textarea } from './components/FormBuilder.js';
 
 const TYPE_LABELS = { brief: '创作简报', content: '文稿内容' };
 const TABS = [
@@ -208,26 +209,9 @@ export class TemplatesView {
     const body = document.createElement('div');
     body.style.cssText = 'padding:16px 18px';
 
-    const nameRow = document.createElement('div');
-    nameRow.style.cssText = 'margin-bottom:14px';
-    const nameLabel = document.createElement('div');
-    nameLabel.style.cssText = 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary)';
-    nameLabel.textContent = '模板名称 *';
-    nameRow.appendChild(nameLabel);
-    const nameInput = document.createElement('input');
-    nameInput.className = 'ms-form-input';
-    nameInput.id = 'media-studio-template-form-name';
-    nameInput.placeholder = '输入模板名称';
-    nameInput.value = tmpl?.name || '';
-    nameRow.appendChild(nameInput);
-    body.appendChild(nameRow);
+    const nameInput = input({ id: 'media-studio-template-form-name', placeholder: '输入模板名称', value: tmpl?.name || '' });
+    body.appendChild(formGroup('模板名称 *', nameInput));
 
-    const typeRow = document.createElement('div');
-    typeRow.style.cssText = 'margin-bottom:14px';
-    const typeLabel = document.createElement('div');
-    typeLabel.style.cssText = 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary)';
-    typeLabel.textContent = '模板类型';
-    typeRow.appendChild(typeLabel);
     const typeSelect = document.createElement('select');
     typeSelect.className = 'ms-select';
     typeSelect.id = 'media-studio-template-form-type';
@@ -239,51 +223,16 @@ export class TemplatesView {
       if (tmpl?.type === v) opt.selected = true;
       typeSelect.appendChild(opt);
     }
-    typeRow.appendChild(typeSelect);
-    body.appendChild(typeRow);
+    body.appendChild(formGroup('模板类型', typeSelect));
 
-    const descRow = document.createElement('div');
-    descRow.style.cssText = 'margin-bottom:14px';
-    const descLabel = document.createElement('div');
-    descLabel.style.cssText = 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary)';
-    descLabel.textContent = '模板说明';
-    descRow.appendChild(descLabel);
-    const descInput = document.createElement('input');
-    descInput.className = 'ms-form-input';
-    descInput.id = 'media-studio-template-form-desc';
-    descInput.placeholder = '简要说明模板用途';
-    descInput.value = tmpl?.description || '';
-    descRow.appendChild(descInput);
-    body.appendChild(descRow);
+    const descInput = input({ id: 'media-studio-template-form-desc', placeholder: '简要说明模板用途', value: tmpl?.description || '' });
+    body.appendChild(formGroup('模板说明', descInput));
 
-    const tagsRow = document.createElement('div');
-    tagsRow.style.cssText = 'margin-bottom:14px';
-    const tagsLabel = document.createElement('div');
-    tagsLabel.style.cssText = 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary)';
-    tagsLabel.textContent = '标签（逗号分隔）';
-    tagsRow.appendChild(tagsLabel);
-    const tagsInput = document.createElement('input');
-    tagsInput.className = 'ms-form-input';
-    tagsInput.id = 'media-studio-template-form-tags';
-    tagsInput.placeholder = '如：专业, 科技, 产品';
-    tagsInput.value = tmpl?.tags ? tmpl.tags.join(', ') : '';
-    tagsRow.appendChild(tagsInput);
-    body.appendChild(tagsRow);
+    const tagsInput = input({ id: 'media-studio-template-form-tags', placeholder: '如：专业, 科技, 产品', value: tmpl?.tags ? tmpl.tags.join(', ') : '' });
+    body.appendChild(formGroup('标签（逗号分隔）', tagsInput));
 
-    const contentRow = document.createElement('div');
-    contentRow.style.cssText = 'margin-bottom:14px';
-    const contentLabel = document.createElement('div');
-    contentLabel.style.cssText = 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary)';
-    contentLabel.textContent = '模板内容';
-    contentRow.appendChild(contentLabel);
-    const contentArea = document.createElement('textarea');
-    contentArea.className = 'ms-form-textarea';
-    contentArea.id = 'media-studio-template-form-content';
-    contentArea.placeholder = '输入模板内容...';
-    contentArea.style.cssText = 'min-height:120px';
-    contentArea.value = tmpl?.content || '';
-    contentRow.appendChild(contentArea);
-    body.appendChild(contentRow);
+    const contentArea = textarea({ id: 'media-studio-template-form-content', placeholder: '输入模板内容...', minHeight: '120px', value: tmpl?.content || '' });
+    body.appendChild(formGroup('模板内容', contentArea));
 
     modal.setBody(body);
     modal.setFooter(`

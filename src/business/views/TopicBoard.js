@@ -1,6 +1,7 @@
 import { empty } from '../../framework/utils/dom.js';
 import { repo } from '../data/index.js';
 import { Modal } from '../../framework/ui/Modal.js';
+import { formGroup, input, themeSelect } from './components/FormBuilder.js';
 
 export class TopicBoard {
   constructor({ api, state, schemaRegistry }) {
@@ -175,15 +176,16 @@ export class TopicBoard {
   }
 
   _createTopic(idea) {
-    const m = new Modal({ title: '创建选题', width: '460px' });
+    const m = new Modal({ title: '新建选题', width: '460px' });
     const b = ce('div', 'padding:16px 18px;');
     const src = ce('div', 'font-size:12px;color:var(--ms-text-secondary);margin-bottom:12px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:var(--ms-radius-sm);');
     src.innerHTML = `来源灵感：<strong>${idea.title}</strong>`;
     b.append(src);
-    b.append(_fld('选题标题 *', 't-title', '', idea.title));
-    b.append(_fld('截止日期', 't-due', 'YYYY-MM-DD', ''));
-    const ctRow = ce('div', 'margin-bottom:14px;');
-    const ctL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '内容形态');
+    b.append(formGroup('选题标题 *', input({ id:'t-title', value: idea.title })));
+    const ctRow = document.createElement('div');
+    ctRow.className = 'ms-form-group';
+    const ctL = document.createElement('label');
+    ctL.textContent = '内容形态';
     ctRow.append(ctL);
     const sel = document.createElement('select');
     sel.className = 'ms-form-input ms-input-sm'; sel.id = 't-type';
@@ -193,7 +195,7 @@ export class TopicBoard {
     }
     ctRow.append(sel);
     b.append(ctRow);
-    b.append(_themeSel('关联主题', 't-theme', this.themes, idea.themeId||''));
+    b.append(formGroup('关联主题', themeSelect({ id:'t-theme', themes: this.themes, value: idea.themeId||'' })));
     m.setBody(b);
     m.setFooter(`<button class="ms-btn ms-btn-sm" id="tp-create-cancel">取消</button>
       <button class="ms-btn ms-btn-primary ms-btn-sm" id="tp-create-submit">创建</button>`);
@@ -207,7 +209,6 @@ export class TopicBoard {
           title, ideaId: idea.id,
           themeId: _q('#t-theme')?.value || idea.themeId || '',
           contentType: _q('#t-type')?.value || 'graphic',
-          dueDate: _q('#t-due')?.value?.trim() || null,
           status: 'draft',
         });
         if (idea.status === 'active') {
@@ -224,10 +225,11 @@ export class TopicBoard {
   _editTopic(t) {
     const m = new Modal({ title: '编辑选题', width: '460px' });
     const b = ce('div', 'padding:16px 18px;');
-    b.append(_fld('选题标题', 'e-title', '', t.title));
-    b.append(_fld('截止日期', 'e-due', 'YYYY-MM-DD', t.dueDate||''));
-    const ctRow = ce('div', 'margin-bottom:14px;');
-    const ctL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '内容形态');
+    b.append(formGroup('选题标题', input({ id:'e-title', value: t.title })));
+    const ctRow = document.createElement('div');
+    ctRow.className = 'ms-form-group';
+    const ctL = document.createElement('label');
+    ctL.textContent = '内容形态';
     ctRow.append(ctL);
     const sel = document.createElement('select');
     sel.className = 'ms-form-input ms-input-sm'; sel.id = 'e-type';
@@ -239,9 +241,11 @@ export class TopicBoard {
     }
     ctRow.append(sel);
     b.append(ctRow);
-    b.append(_themeSel('关联主题', 'e-theme', this.themes, t.themeId||''));
-    const stRow = ce('div', 'margin-bottom:14px;');
-    const stL = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', '状态');
+    b.append(formGroup('关联主题', themeSelect({ id:'e-theme', themes: this.themes, value: t.themeId||'' })));
+    const stRow = document.createElement('div');
+    stRow.className = 'ms-form-group';
+    const stL = document.createElement('label');
+    stL.textContent = '状态';
     stRow.append(stL);
     const stSel = document.createElement('select');
     stSel.className = 'ms-form-input ms-input-sm'; stSel.id = 'e-status';
@@ -261,7 +265,7 @@ export class TopicBoard {
     m.el.querySelector('#tp-edit-save').onclick = async () => {
       const d = {
         title: _q('#e-title')?.value?.trim() || t.title,
-        dueDate: _q('#e-due')?.value?.trim() || null,
+
         contentType: _q('#e-type')?.value || t.contentType,
         themeId: _q('#e-theme')?.value || '',
         status: _q('#e-status')?.value || 'pending',
@@ -320,30 +324,5 @@ function btn(label, kind, onClick, title) {
   el.className = `ms-btn${kind==='primary'?' ms-btn-primary':''} ms-btn-sm`;
   el.onclick = onClick;
   return el;
-}
-function _fld(label, id, ph, val) {
-  const r = ce('div', 'margin-bottom:14px;');
-  const l = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', label);
-  r.append(l);
-  const inp = document.createElement('input');
-  inp.className = 'ms-form-input'; inp.id = id; inp.placeholder = ph; inp.value = val||'';
-  r.append(inp);
-  return r;
-}
-function _themeSel(label, id, themes, val) {
-  const r = ce('div', 'margin-bottom:14px;');
-  const l = ce('div', 'margin-bottom:4px;font-size:12px;font-weight:500;color:var(--ms-text-secondary);', label);
-  r.append(l);
-  const sel = document.createElement('select');
-  sel.className = 'ms-form-input ms-input-sm'; sel.id = id;
-  sel.style.cssText = 'width:auto;';
-  const oa = document.createElement('option'); oa.value=''; oa.textContent='无'; bn(oa, sel);
-  for (const t of themes) {
-    const o = document.createElement('option'); o.value=t.id; o.textContent=t.name;
-    if (t.id===val) o.selected=true;
-    bn(o, sel);
-  }
-  r.append(sel);
-  return r;
 }
 function _q(id) { return document.querySelector(id); }
