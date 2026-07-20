@@ -6,13 +6,12 @@ The system SHALL allow users to select an idea with status "active" and create a
 When creating a topic, the user SHALL specify:
 - title (required): 选题标题 (pre-filled from idea title)
 - contentType (required): graphic / video / text
-- dueDate (optional): 截止日期
 - themeId (optional, auto-filled from idea's theme): 关联主题
 
 Upon topic creation, the source idea's status SHALL automatically change to "used".
 
 #### Scenario: Create topic from idea with all fields
-- **WHEN** user selects an active idea, opens the topic creation dialog, confirms title and contentType "video", sets a dueDate
+- **WHEN** user selects an active idea, opens the topic creation dialog, confirms title and contentType "video"
 - **THEN** a new topic record is created with status "draft", and the source idea's status changes to "used"
 
 #### Scenario: Create topic without contentType
@@ -26,15 +25,15 @@ Upon topic creation, the source idea's status SHALL automatically change to "use
 ### Requirement: User can view all topics
 
 The system SHALL display all topics in a list view, showing:
-- title, contentType label, source idea title, associated theme name, status, dueDate
+- title, contentType label, source idea title, associated theme name, status
 
 #### Scenario: View topic list
 - **WHEN** user navigates to TopicBoard view
-- **THEN** all topics are displayed with title, content type badge, source idea, theme, status, and due date
+- **THEN** all topics are displayed with title, content type badge, source idea, theme, and status
 
 ### Requirement: User can update a topic
 
-The system SHALL allow users to edit the title, contentType, dueDate, and status of a topic.
+The system SHALL allow users to edit the title, contentType, and status of a topic.
 
 #### Scenario: Mark topic as completed
 - **WHEN** user changes a topic's status from "draft" to "completed"

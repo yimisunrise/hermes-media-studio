@@ -59,8 +59,7 @@ const TABLE_DEFS = [
       { id: 'themeId', type: 'reference', label: '关联主题', ref: { database: 'business', table: 'themes' } },
       { id: 'title', type: 'string', label: '选题标题', required: true },
       { id: 'contentType', type: 'enum', label: '内容形态', enum: ['graphic', 'video', 'text'] },
-      { id: 'dueDate', type: 'datetime', label: '截止日期' },
-      { id: 'status', type: 'enum', label: '状态', enum: ['draft', 'in_progress', 'completed', 'cancelled'], defaultValue: 'draft' },
+        { id: 'status', type: 'enum', label: '状态', enum: ['draft', 'in_progress', 'completed', 'cancelled'], defaultValue: 'draft' },
       { id: 'createdAt', type: 'datetime', autoSet: 'created' },
       { id: 'updatedAt', type: 'datetime', autoSet: 'updated' }
     ],
