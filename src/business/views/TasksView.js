@@ -137,40 +137,82 @@ export class TasksView {
     const header = document.createElement('div');
     header.className = 'ms-task-card-header';
 
+    const briefEl = document.createElement('div');
+    briefEl.className = 'ms-task-brief';
+    briefEl.style.cssText = 'flex:1;min-width:0;margin:0;font-weight:600;font-size:14px;';
+    briefEl.textContent = task.title || task.prompt || '(无简报)';
+    header.appendChild(briefEl);
+
+    card.appendChild(header);
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.ms-item-card-actions')) return;
+      TaskDetail.open(this.api, this.state, this._sr, task);
+    });
+
+    const bottomRow = document.createElement('div');
+    bottomRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:8px;';
+
     const typeBadge = document.createElement('span');
     typeBadge.className = 'ms-task-type-badge';
     typeBadge.style.background = task.taskType === 'copywriting' ? '#27ae60' : '#4a90d9';
     typeBadge.textContent = TYPE_LABELS[task.taskType] || task.taskType;
-    header.appendChild(typeBadge);
+    bottomRow.appendChild(typeBadge);
 
     const modeBadge = document.createElement('span');
     modeBadge.className = 'ms-task-mode-badge';
     modeBadge.textContent = MODE_LABELS[task.mode] || task.mode;
-    header.appendChild(modeBadge);
+    bottomRow.appendChild(modeBadge);
 
     const statusBadge = document.createElement('span');
     statusBadge.className = 'ms-task-status-badge';
     statusBadge.textContent = STATUS_LABELS[task.status] || task.status;
-    header.appendChild(statusBadge);
+    bottomRow.appendChild(statusBadge);
 
-    card.appendChild(header);
-
-    const briefEl = document.createElement('div');
-    briefEl.className = 'ms-task-brief';
-    briefEl.textContent = task.title || task.prompt || '(无简报)';
-    card.appendChild(briefEl);
-
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.ms-task-action-btn')) return;
-      TaskDetail.open(this.api, this.state, this._sr, task);
-    });
-
-    const timeEl = document.createElement('div');
-    timeEl.className = 'ms-task-time';
+    const timeEl = document.createElement('span');
+    timeEl.style.cssText = 'font-size:11px;color:var(--ms-text-secondary);';
     timeEl.textContent = '创建时间: ' + formatDateTime(task.createdAt);
-    card.appendChild(timeEl);
+    bottomRow.appendChild(timeEl);
+
+    card.appendChild(bottomRow);
+
+    const actionsEl = document.createElement('div');
+    actionsEl.className = 'ms-item-card-actions';
+    const delBtn = document.createElement('button');
+    delBtn.style.cssText = 'padding:4px 10px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:11px;font-weight:500;background:var(--ms-danger);color:#fff;';
+    delBtn.textContent = '删除';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); this._deleteTask(task); });
+    actionsEl.appendChild(delBtn);
+    card.appendChild(actionsEl);
 
     return card;
+  }
+
+  async _deleteTask(task) {
+    const warning = task.taskType === 'media'
+      ? '该任务可能已关联素材，删除后关联素材将变为孤立记录。'
+      : '该任务可能已关联文稿，删除后关联文稿将变为孤立记录。';
+    const m = new Modal({ size: 'sm' });
+    m.setBody(`<div style="padding:20px 18px;text-align:center;">
+      <div style="font-size:16px;margin-bottom:12px;">确认删除任务？</div>
+      <div style="font-size:12px;color:var(--ms-text-secondary,#a0a0a0);margin-bottom:8px;">「${task.title || task.prompt || '(无简报)'}」</div>
+      <div style="font-size:11px;color:var(--ms-text-secondary,#a0a0a0);padding:8px 12px;background:var(--ms-bg-primary,#1a1a2e);border-radius:4px;">${warning}</div>
+    </div>`);
+    m.setFooter(`<div style="display:flex;justify-content:center;gap:8px;">
+      <button class="ms-btn ms-btn-sm" id="task-del-cancel">取消</button>
+      <button class="ms-btn ms-btn-sm" id="task-del-confirm" style="padding:6px 16px;border:none;border-radius:var(--ms-radius-sm);cursor:pointer;font-size:12px;font-weight:500;background:var(--ms-danger);color:#fff;">确认删除</button>
+    </div>`);
+    m.open();
+    m.el.querySelector('#task-del-cancel').onclick = () => m.close();
+    m.el.querySelector('#task-del-confirm').onclick = async () => {
+      try {
+        await this._ts().delete(task.id);
+        m.close();
+        await this._loadAndRender();
+      } catch (e) {
+        console.error('删除任务失败', e);
+      }
+    };
   }
 
   _showCreateForm() {
