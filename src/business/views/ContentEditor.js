@@ -1,5 +1,5 @@
 import { empty, debounce } from '../../framework/utils/dom.js';
-import { contentRepo, repo } from '../data/index.js';
+import { contentRepo, repo, templateRepo } from '../data/index.js';
 
 export class ContentEditor {
   constructor({ api, state, schemaRegistry }) {
@@ -141,6 +141,8 @@ export class ContentEditor {
     }
 
     if (!this._isReadOnly) {
+      this._renderTemplateSelector(toolbar);
+
       const saveBtn = document.createElement('button');
       saveBtn.className = 'ms-btn';
       saveBtn.textContent = '保存草稿';
@@ -155,6 +157,77 @@ export class ContentEditor {
     }
 
     return toolbar;
+  }
+
+  _renderTemplateSelector(toolbar) {
+    const btn = document.createElement('button');
+    btn.className = 'ms-btn';
+    btn.textContent = '模板';
+    btn.addEventListener('click', async () => {
+      const panelId = 'media-studio-template-panel';
+      const existing = document.getElementById(panelId);
+      if (existing) { existing.remove(); return; }
+
+      const panel = document.createElement('div');
+      panel.id = panelId;
+      panel.style.cssText = 'position:absolute;top:100%;right:0;z-index:10000;width:280px;max-height:300px;overflow-y:auto;background:var(--ms-bg-card,#0f3460);border:1px solid var(--ms-border,#2a2a4a);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:8px 0;';
+      panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ms-text-secondary,#a0a0a0);font-size:13px;">加载中...</div>';
+
+      if (toolbar.style.position !== 'relative') {
+        toolbar.style.position = 'relative';
+      }
+      toolbar.appendChild(panel);
+
+      const clickOutside = (e) => {
+        if (!panel.contains(e.target) && e.target !== btn) {
+          panel.remove();
+          document.removeEventListener('click', clickOutside);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', clickOutside), 0);
+
+      try {
+        const tr = templateRepo(this.api, this._sr);
+        const result = await tr.find({ filter: { type: 'content' }, sort: '-createdAt' });
+        const templates = result.records || [];
+
+        panel.innerHTML = '';
+        if (templates.length === 0) {
+          panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ms-text-secondary,#a0a0a0);font-size:13px;">暂无模板</div>';
+          return;
+        }
+
+        for (const tmpl of templates) {
+          const item = document.createElement('div');
+          item.style.cssText = 'padding:10px 14px;cursor:pointer;transition:background 0.15s;';
+          const name = tmpl.name || '未命名';
+          const desc = tmpl.description || '';
+          item.innerHTML = '<div style="font-size:13px;font-weight:500;color:var(--ms-text-primary,#e0e0e0);margin-bottom:2px;">' + this._escapeHtml(name) + '</div>' +
+            (desc ? '<div style="font-size:11px;color:var(--ms-text-secondary,#a0a0a0);">' + this._escapeHtml(desc) + '</div>' : '');
+          item.onmouseenter = () => { item.style.background = 'var(--ms-bg-primary,#1a1a2e)'; };
+          item.onmouseleave = () => { item.style.background = ''; };
+          item.addEventListener('click', () => {
+            panel.remove();
+            document.removeEventListener('click', clickOutside);
+            if (this._textarea) {
+              this._textarea.value = tmpl.content || '';
+              this._previewEl.innerHTML = this._renderMarkdown(tmpl.content || '');
+            }
+          });
+          panel.appendChild(item);
+        }
+      } catch (e) {
+        panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ms-danger,#e74c3c);font-size:13px;">加载模板失败</div>';
+        console.error('加载模板失败:', e);
+      }
+    });
+    toolbar.appendChild(btn);
+  }
+
+  _escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
   }
 
   _renderBody() {
