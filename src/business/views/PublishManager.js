@@ -50,9 +50,7 @@ export class PublishManager {
     this._packages = [];
     this._platforms = [];
     this._contents = [];
-    this._expandedId = null;
     this._content = null;
-    this._detail = null;
   }
 
   _packageRepo() { return packageRepo(this.api, this._sr); }
@@ -84,13 +82,8 @@ export class PublishManager {
     container.appendChild(content);
     this._content = content;
 
-    const detail = document.createElement('div');
-    detail.style.display = 'none';
-    container.appendChild(detail);
-    this._detail = detail;
-
     if (this._packages.length === 0) {
-      content.innerHTML = '<div class="ms-empty" style="padding:48px;text-align:center;color:var(--ms-text-secondary);">暂无发布包，点击上方「创建发布包」开始管理发布流程</div>';
+      content.innerHTML = '<div class="ms-empty" style="padding:48px;text-align:center;color:var(--ms-text-secondary);"><svg class="ms-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/><path d="M9 14h6M9 18h6"/></svg><div>暂无发布包，点击上方「创建发布包」开始管理</div></div>';
       return;
     }
 
@@ -128,69 +121,60 @@ export class PublishManager {
   _renderList() {
     empty(this._content);
 
-    const table = document.createElement('table');
-    table.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;';
-    table.innerHTML = `
-      <thead>
-        <tr style="border-bottom:1px solid var(--ms-border);">
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">标题</th>
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">状态</th>
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">平台数</th>
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">创建时间</th>
-          <th style="text-align:right;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">操作</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    `;
-    const tbody = table.querySelector('tbody');
-    this._content.appendChild(table);
-
     for (const pkg of this._packages) {
-      const row = document.createElement('tr');
-      row.style.cssText = 'border-bottom:1px solid var(--ms-border);transition:background 0.15s;cursor:pointer;';
-      if (pkg.id === this._expandedId) {
-        row.style.background = 'var(--ms-bg-card)';
-      }
-      row.addEventListener('mouseenter', () => { if (pkg.id !== this._expandedId) row.style.background = 'var(--ms-bg-card)'; });
-      row.addEventListener('mouseleave', () => { if (pkg.id !== this._expandedId) row.style.background = ''; });
+      const card = document.createElement('div');
+      card.className = 'ms-item-card';
 
       const platformCount = Array.isArray(pkg.platformIds) ? pkg.platformIds.length : 0;
       const badge = this._statusBadge(pkg.status, PACKAGE_STATUS_LABELS, PACKAGE_STATUS_COLORS);
       const createdAt = this._formatDateTime(pkg.createdAt || pkg._ctime);
 
-      row.innerHTML = `
-        <td style="padding:10px 12px;color:var(--ms-text-primary);">${this._escapeHtml(pkg.title || '-')}</td>
-        <td style="padding:10px 12px;">${badge}</td>
-        <td style="padding:10px 12px;color:var(--ms-text-secondary);">${platformCount}</td>
-        <td style="padding:10px 12px;color:var(--ms-text-secondary);font-size:12px;">${createdAt}</td>
-        <td style="padding:10px 12px;text-align:right;"></td>
-      `;
+      // Info row (title + actions)
+      const info = document.createElement('div');
+      info.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
 
-      const actionCell = row.querySelector('td:last-child');
+      const titleEl = document.createElement('div');
+      titleEl.style.cssText = 'font-weight:600;font-size:14px;color:var(--ms-text-primary);';
+      titleEl.textContent = pkg.title || '-';
+      info.appendChild(titleEl);
+
+      // Actions (hover shown)
+      const actions = document.createElement('div');
+      actions.className = 'ms-item-card-actions';
 
       if (pkg.status === 'scheduled' || pkg.status === 'draft') {
         const publishBtn = document.createElement('button');
         publishBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
-        publishBtn.style.marginRight = '4px';
         publishBtn.textContent = '发布';
         publishBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           this._handlePublishNow(pkg);
         });
-        actionCell.appendChild(publishBtn);
+        actions.appendChild(publishBtn);
       }
 
       const detailBtn = document.createElement('button');
       detailBtn.className = 'ms-btn ms-btn-sm';
-      detailBtn.textContent = pkg.id === this._expandedId ? '收起' : '详情';
+      detailBtn.textContent = '详情';
       detailBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this._toggleDetail(pkg);
+        this._openDetailModal(pkg);
       });
-      actionCell.appendChild(detailBtn);
+      actions.appendChild(detailBtn);
 
-      row.addEventListener('click', () => this._toggleDetail(pkg));
-      tbody.appendChild(row);
+      info.appendChild(actions);
+      card.appendChild(info);
+
+      // Meta row
+      const meta = document.createElement('div');
+      meta.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--ms-text-secondary);';
+      meta.innerHTML = `${badge}<span>平台数: ${platformCount}</span><span>${createdAt}</span>`;
+      card.appendChild(meta);
+
+      // Card click -> detail modal
+      card.addEventListener('click', () => this._openDetailModal(pkg));
+
+      this._content.appendChild(card);
     }
   }
 
@@ -361,56 +345,20 @@ export class PublishManager {
     cancelBtn.addEventListener('click', () => m.close());
   }
 
-  async _toggleDetail(pkg) {
-    if (this._expandedId === pkg.id) {
-      this._expandedId = null;
-      this._detail.style.display = 'none';
-      empty(this._detail);
-      this._renderList();
-    } else {
-      this._expandedId = pkg.id;
-      await this._renderDetail(pkg);
-      this._renderList();
-    }
-  }
+  async _openDetailModal(pkg) {
+    const body = document.createElement('div');
 
-  async _renderDetail(pkg) {
-    this._detail.style.display = '';
-    empty(this._detail);
-
+    // Header info
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--ms-border);background:var(--ms-bg-card);';
-
-    const left = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:16px;';
     const pkgTitle = document.createElement('span');
     pkgTitle.style.cssText = 'font-weight:600;font-size:14px;color:var(--ms-text-primary);';
     pkgTitle.textContent = '发布包: ' + (pkg.title || '-');
-    left.appendChild(pkgTitle);
-
+    header.appendChild(pkgTitle);
     const badgeSpan = document.createElement('span');
-    badgeSpan.style.marginLeft = '10px';
     badgeSpan.innerHTML = this._statusBadge(pkg.status, PACKAGE_STATUS_LABELS, PACKAGE_STATUS_COLORS);
-    left.appendChild(badgeSpan);
-    header.appendChild(left);
-
-    const right = document.createElement('div');
-
-    if (pkg.status === 'scheduled' || pkg.status === 'draft') {
-      const publishBtn = document.createElement('button');
-      publishBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
-      publishBtn.style.marginRight = '8px';
-      publishBtn.textContent = '发布';
-      publishBtn.addEventListener('click', () => this._handlePublishNow(pkg));
-      right.appendChild(publishBtn);
-    }
-
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'ms-btn ms-btn-sm';
-    closeBtn.textContent = '关闭';
-    closeBtn.addEventListener('click', () => this._toggleDetail(pkg));
-    right.appendChild(closeBtn);
-    header.appendChild(right);
-    this._detail.appendChild(header);
+    header.appendChild(badgeSpan);
+    body.appendChild(header);
 
     let schedules = [];
     let pLogs = [];
@@ -436,92 +384,122 @@ export class PublishManager {
       const emptyDiv = document.createElement('div');
       emptyDiv.style.cssText = 'padding:32px;text-align:center;color:var(--ms-text-secondary);';
       emptyDiv.textContent = '此发布包未关联任何平台';
-      this._detail.appendChild(emptyDiv);
-      return;
-    }
-
-    const detailTable = document.createElement('table');
-    detailTable.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;';
-    detailTable.innerHTML = `
-      <thead>
-        <tr style="border-bottom:1px solid var(--ms-border);background:var(--ms-bg-card);">
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">平台</th>
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">排期时间</th>
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">发布状态</th>
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">发布地址</th>
-          <th style="text-align:right;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">操作</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    `;
-    const detailTbody = detailTable.querySelector('tbody');
-
-    for (const platformId of platformIds) {
-      const platformName = this._getPlatformName(platformId);
-      const schedule = schMap[platformId];
-      const pLog = logMap[platformId];
-
-      const dRow = document.createElement('tr');
-      dRow.style.cssText = 'border-bottom:1px solid var(--ms-border);';
-
-      const scheduleTime = schedule ? this._formatDateTime(schedule.scheduledAt) : '-';
-      const logBadge = pLog ? this._statusBadge(pLog.status, LOG_STATUS_LABELS, LOG_STATUS_COLORS) : '<span style="color:var(--ms-text-secondary);">-</span>';
-      const url = (pLog && pLog.url) ? `<a href="${this._escapeHtml(pLog.url)}" target="_blank" style="color:var(--ms-accent);">${this._escapeHtml(pLog.url)}</a>` : '-';
-
-      dRow.innerHTML = `
-        <td style="padding:10px 12px;color:var(--ms-text-primary);">${this._escapeHtml(platformName)}</td>
-        <td style="padding:10px 12px;color:var(--ms-text-secondary);font-size:12px;">${scheduleTime}</td>
-        <td style="padding:10px 12px;">${logBadge}</td>
-        <td style="padding:10px 12px;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${url}</td>
-        <td style="padding:10px 12px;text-align:right;"></td>
+      body.appendChild(emptyDiv);
+    } else {
+      const detailTable = document.createElement('table');
+      detailTable.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;';
+      detailTable.innerHTML = `
+        <thead>
+          <tr style="border-bottom:1px solid var(--ms-border);background:var(--ms-bg-card);">
+            <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">平台</th>
+            <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">排期时间</th>
+            <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">发布状态</th>
+            <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">发布地址</th>
+            <th style="text-align:right;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">操作</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
       `;
+      const detailTbody = detailTable.querySelector('tbody');
 
-      const actionCell = dRow.querySelector('td:last-child');
+      for (const platformId of platformIds) {
+        const platformName = this._getPlatformName(platformId);
+        const schedule = schMap[platformId];
+        const pLog = logMap[platformId];
 
-      if (pLog && pLog.status === 'publishing') {
-        const markBtn = document.createElement('button');
-        markBtn.className = 'ms-btn ms-btn-sm';
-        markBtn.textContent = '标记发布结果';
-        markBtn.addEventListener('click', () => this._openMarkResultModal(pkg, platformId, pLog, schedule));
-        actionCell.appendChild(markBtn);
-      }
+        const dRow = document.createElement('tr');
+        dRow.style.cssText = 'border-bottom:1px solid var(--ms-border);';
 
-      if (pLog && pLog.status === 'failed' && (pLog.retryCount || 0) < 3) {
-        const retryBtn = document.createElement('button');
-        retryBtn.className = 'ms-btn ms-btn-sm';
-        retryBtn.style.marginLeft = '4px';
-        retryBtn.textContent = '重试';
-        retryBtn.addEventListener('click', async () => {
-          try {
-            await this._publishLogRepo().update(pLog.id, {
-              status: 'publishing',
-              error: null,
-              retryCount: (pLog.retryCount || 0) + 1
-            });
-            if (schedule) {
-              await this._scheduleRepo().update(schedule.id, { status: 'publishing' });
+        const scheduleTime = schedule ? this._formatDateTime(schedule.scheduledAt) : '-';
+        const logBadge = pLog ? this._statusBadge(pLog.status, LOG_STATUS_LABELS, LOG_STATUS_COLORS) : '<span style="color:var(--ms-text-secondary);">-</span>';
+        const url = (pLog && pLog.url) ? `<a href="${this._escapeHtml(pLog.url)}" target="_blank" style="color:var(--ms-accent);">${this._escapeHtml(pLog.url)}</a>` : '-';
+
+        dRow.innerHTML = `
+          <td style="padding:10px 12px;color:var(--ms-text-primary);">${this._escapeHtml(platformName)}</td>
+          <td style="padding:10px 12px;color:var(--ms-text-secondary);font-size:12px;">${scheduleTime}</td>
+          <td style="padding:10px 12px;">${logBadge}</td>
+          <td style="padding:10px 12px;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${url}</td>
+          <td style="padding:10px 12px;text-align:right;"></td>
+        `;
+
+        const actionCell = dRow.querySelector('td:last-child');
+
+        if (pLog && pLog.status === 'publishing') {
+          const markBtn = document.createElement('button');
+          markBtn.className = 'ms-btn ms-btn-sm';
+          markBtn.textContent = '标记发布结果';
+          markBtn.addEventListener('click', () => {
+            m.close();
+            this._openMarkResultModal(pkg, platformId, pLog, schedule);
+          });
+          actionCell.appendChild(markBtn);
+        }
+
+        if (pLog && pLog.status === 'failed' && (pLog.retryCount || 0) < 3) {
+          const retryBtn = document.createElement('button');
+          retryBtn.className = 'ms-btn ms-btn-sm';
+          retryBtn.style.marginLeft = '4px';
+          retryBtn.textContent = '重试';
+          retryBtn.addEventListener('click', async () => {
+            try {
+              await this._publishLogRepo().update(pLog.id, {
+                status: 'publishing',
+                error: null,
+                retryCount: (pLog.retryCount || 0) + 1
+              });
+              if (schedule) {
+                await this._scheduleRepo().update(schedule.id, { status: 'publishing' });
+              }
+              m.close();
+              const refreshed = this._packages.find(p => p.id === pkg.id) || pkg;
+              this._openDetailModal(refreshed);
+            } catch (e) {
+              console.error('重试发布失败', e);
             }
-            await this._toggleDetail(await this._packageRepo().get(pkg.id));
-          } catch (e) {
-            console.error('重试发布失败', e);
-          }
-        });
-        actionCell.appendChild(retryBtn);
+          });
+          actionCell.appendChild(retryBtn);
+        }
+
+        detailTbody.appendChild(dRow);
       }
 
-      detailTbody.appendChild(dRow);
+      body.appendChild(detailTable);
+
+      if (pkg.status === 'partially_published' || pkg.status === 'failed') {
+        const summary = document.createElement('div');
+        summary.style.cssText = 'padding:12px 16px;font-size:13px;color:var(--ms-text-secondary);border-top:1px solid var(--ms-border);margin-top:8px;';
+        const successCount = pLogs.filter(l => l.status === 'success').length;
+        const failCount = pLogs.filter(l => l.status === 'failed').length;
+        summary.textContent = `发布汇总: ${successCount} 成功, ${failCount} 失败`;
+        body.appendChild(summary);
+      }
     }
 
-    this._detail.appendChild(detailTable);
+    // Footer
+    const footer = document.createElement('div');
 
-    if (pkg.status === 'partially_published' || pkg.status === 'failed') {
-      const summary = document.createElement('div');
-      summary.style.cssText = 'padding:12px 16px;font-size:13px;color:var(--ms-text-secondary);border-top:1px solid var(--ms-border);';
-      const successCount = pLogs.filter(l => l.status === 'success').length;
-      const failCount = pLogs.filter(l => l.status === 'failed').length;
-      summary.textContent = `发布汇总: ${successCount} 成功, ${failCount} 失败`;
-      this._detail.appendChild(summary);
+    if (pkg.status === 'scheduled' || pkg.status === 'draft') {
+      const publishBtn = document.createElement('button');
+      publishBtn.className = 'ms-btn ms-btn-primary ms-btn-sm';
+      publishBtn.style.marginRight = '8px';
+      publishBtn.textContent = '发布';
+      publishBtn.addEventListener('click', async () => {
+        m.close();
+        await this._handlePublishNow(pkg);
+      });
+      footer.appendChild(publishBtn);
     }
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'ms-btn ms-btn-sm';
+    closeBtn.textContent = '关闭';
+    closeBtn.addEventListener('click', () => m.close());
+    footer.appendChild(closeBtn);
+
+    const m = new Modal({ title: '发布包详情', size: 'lg' });
+    m.setBody(body);
+    m.setFooter(footer);
+    m.open();
   }
 
   async _handlePublishNow(pkg) {
@@ -545,10 +523,6 @@ export class PublishManager {
       await Promise.all(updates);
 
       await this._load();
-      if (this._expandedId === pkg.id) {
-        const refreshed = this._packages.find(p => p.id === pkg.id) || pkg;
-        await this._renderDetail(refreshed);
-      }
       this._renderList();
     } catch (e) {
       console.error('执行发布失败', e);
@@ -654,7 +628,7 @@ export class PublishManager {
         m.close();
         await this._load();
         const refreshed = this._packages.find(p => p.id === pkg.id) || pkg;
-        await this._renderDetail(refreshed);
+        this._openDetailModal(refreshed);
       } catch (e) {
         console.error('保存发布结果失败', e);
       }
@@ -751,11 +725,9 @@ export class PublishManager {
   }
 
   destroy() {
-    this._expandedId = null;
     this._packages = [];
     this._platforms = [];
     this._contents = [];
     this._content = null;
-    this._detail = null;
   }
 }

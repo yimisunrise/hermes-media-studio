@@ -46,7 +46,7 @@ export class PlatformConfig {
     this._content = content;
 
     if (this._platforms.length === 0) {
-      content.innerHTML = '<div class="ms-empty" style="padding:48px;text-align:center;color:var(--ms-text-secondary);">暂无平台配置，点击上方「添加平台」添加第一个发布平台</div>';
+      content.innerHTML = '<div class="ms-empty"><svg class="ms-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><div>暂无平台配置，点击上方「添加平台」添加第一个发布平台</div></div>';
       return;
     }
 
@@ -66,53 +66,79 @@ export class PlatformConfig {
   _renderList() {
     empty(this._content);
 
-    const table = document.createElement('table');
-    table.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;';
-    table.innerHTML = `
-      <thead>
-        <tr style="border-bottom:1px solid var(--ms-border);">
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">名称</th>
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">类型</th>
-          <th style="text-align:left;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">标识</th>
-          <th style="text-align:center;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">状态</th>
-          <th style="text-align:right;padding:8px 12px;color:var(--ms-text-secondary);font-weight:500;">操作</th>
-        </tr>
-      </thead>
-      <tbody id="ms-platform-tbody"></tbody>
-    `;
-    this._content.appendChild(table);
-
-    const tbody = table.querySelector('#ms-platform-tbody');
-
     for (const p of this._platforms) {
-      const row = document.createElement('tr');
-      row.style.cssText = 'border-bottom:1px solid var(--ms-border);transition:background 0.15s;';
-      row.addEventListener('mouseenter', () => { row.style.background = 'var(--ms-bg-card)'; });
-      row.addEventListener('mouseleave', () => { row.style.background = ''; });
-      row.innerHTML = `
-        <td style="padding:10px 12px;color:var(--ms-text-primary);">${this._escapeHtml(p.name)}</td>
-        <td style="padding:10px 12px;color:var(--ms-text-secondary);">${PLATFORM_TYPE_LABELS[p.type] || p.type || '-'}</td>
-        <td style="padding:10px 12px;color:var(--ms-text-secondary);font-family:monospace;font-size:12px;">${this._escapeHtml(p.slug || '-')}</td>
-        <td style="padding:10px 12px;text-align:center;">
-          <span style="display:inline-block;padding:1px 8px;border-radius:3px;font-size:11px;font-weight:500;background:${p.enabled !== false ? 'rgba(39,174,96,0.15)' : 'rgba(160,160,160,0.15)'};color:${p.enabled !== false ? 'var(--ms-success,#27ae60)' : 'var(--ms-text-secondary)'};">${p.enabled !== false ? '启用' : '禁用'}</span>
-        </td>
-        <td style="padding:10px 12px;text-align:right;">
-          <button class="ms-btn ms-btn-sm ms-platform-edit" style="margin-right:4px;">编辑</button>
-          <button class="ms-btn ms-btn-sm ms-platform-toggle" style="margin-right:4px;">${p.enabled !== false ? '禁用' : '启用'}</button>
-          <button class="ms-btn ms-btn-sm ms-platform-del" style="color:var(--ms-danger);">删除</button>
-        </td>
-      `;
-      tbody.appendChild(row);
+      const card = document.createElement('div');
+      card.className = 'ms-item-card';
 
-      row.querySelector('.ms-platform-edit').addEventListener('click', () => this._openEditor(p));
-      row.querySelector('.ms-platform-toggle').addEventListener('click', async () => {
+      const info = document.createElement('div');
+      info.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
+
+      const nameEl = document.createElement('div');
+      nameEl.style.fontWeight = '600';
+      nameEl.style.fontSize = '14px';
+      nameEl.textContent = p.name;
+      info.appendChild(nameEl);
+
+      const actions = document.createElement('div');
+      actions.className = 'ms-item-card-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'ms-btn ms-btn-sm ms-btn-icon';
+      editBtn.textContent = '✎';
+      editBtn.title = '编辑';
+      editBtn.addEventListener('click', (e) => { e.stopPropagation(); this._openEditor(p); });
+      actions.appendChild(editBtn);
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'ms-btn ms-btn-sm ms-btn-icon';
+      toggleBtn.textContent = p.enabled !== false ? '⏻' : '⏼';
+      toggleBtn.title = p.enabled !== false ? '禁用' : '启用';
+      toggleBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         try {
           await this._repo().update(p.id, { enabled: p.enabled === false ? true : false });
           await this._load();
           this._renderList();
         } catch (e) { console.error('切换平台状态失败', e); }
       });
-      row.querySelector('.ms-platform-del').addEventListener('click', () => this._deletePlatform(p));
+      actions.appendChild(toggleBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'ms-btn ms-btn-sm ms-btn-icon';
+      delBtn.textContent = '✕';
+      delBtn.title = '删除';
+      delBtn.style.color = 'var(--ms-danger)';
+      delBtn.addEventListener('click', (e) => { e.stopPropagation(); this._deletePlatform(p); });
+      actions.appendChild(delBtn);
+
+      info.appendChild(actions);
+      card.appendChild(info);
+
+      const meta = document.createElement('div');
+      meta.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--ms-text-secondary);';
+
+      const typeLabel = document.createElement('span');
+      typeLabel.textContent = PLATFORM_TYPE_LABELS[p.type] || p.type || '-';
+      meta.appendChild(typeLabel);
+
+      const slugEl = document.createElement('span');
+      slugEl.style.cssText = 'font-family:monospace;font-size:11px;color:var(--ms-text-secondary);';
+      slugEl.textContent = p.slug || '';
+      if (p.slug) meta.appendChild(slugEl);
+
+      const statusBadge = document.createElement('span');
+      statusBadge.className = 'ms-task-status-badge';
+      statusBadge.style.cssText = 'margin-left:auto;font-size:10px;padding:1px 8px;border-radius:3px;';
+      statusBadge.style.background = p.enabled !== false ? 'rgba(39,174,96,0.15)' : 'rgba(160,160,160,0.15)';
+      statusBadge.style.color = p.enabled !== false ? 'var(--ms-success,#27ae60)' : 'var(--ms-text-secondary)';
+      statusBadge.textContent = p.enabled !== false ? '启用' : '禁用';
+      meta.appendChild(statusBadge);
+
+      card.appendChild(meta);
+
+      card.addEventListener('click', () => this._openEditor(p));
+
+      this._content.appendChild(card);
     }
   }
 
