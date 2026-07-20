@@ -236,15 +236,17 @@ export class TasksView {
           <option value="agent">Agent</option>
         </select>
       </div>
-      <div class="ms-form-row" style="position:relative">
-        <button class="ms-btn ms-btn-sm" id="media-studio-template-selector-btn" type="button">📋 选择模板</button>
-        <div class="ms-template-selector-panel" id="media-studio-template-selector-panel" style="display:none;position:absolute;top:100%;left:0;z-index:1000;min-width:280px;max-height:300px;overflow-y:auto;background:var(--bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
-          <div class="ms-template-selector-list" id="media-studio-template-selector-list" style="padding:8px"></div>
-          <div class="ms-template-selector-clear" id="media-studio-template-selector-clear" style="padding:8px 12px;border-top:1px solid var(--border,#333);color:var(--text-secondary,#a0a0a0);cursor:pointer;font-size:12px">不使用模板</div>
-        </div>
-      </div>
       <div class="ms-form-row" style="flex-direction:column;align-items:stretch">
-        <label class="ms-form-label">创作简报</label>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="ms-form-label">创作简报</label>
+          <div style="position:relative">
+            <button class="ms-btn ms-btn-sm" id="media-studio-template-selector-btn" type="button">📋 选择模板</button>
+            <div class="ms-template-selector-panel" id="media-studio-template-selector-panel" style="display:none;position:absolute;top:100%;right:0;z-index:1000;min-width:280px;max-height:300px;overflow-y:auto;background:var(--bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
+              <div class="ms-template-selector-list" id="media-studio-template-selector-list" style="padding:8px"></div>
+              <div class="ms-template-selector-clear" id="media-studio-template-selector-clear" style="padding:8px 12px;border-top:1px solid var(--border,#333);color:var(--text-secondary,#a0a0a0);cursor:pointer;font-size:12px">不使用模板</div>
+            </div>
+          </div>
+        </div>
         <textarea class="ms-form-textarea" id="tv-prompt" placeholder="输入任务简报内容..."></textarea>
       </div>
     `);
