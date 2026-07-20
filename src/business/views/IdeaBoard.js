@@ -12,7 +12,6 @@ export class IdeaBoard {
     this._filterStatus = '';
     this._filterTheme = '';
     this._searchText = '';
-    this._expandId = null;
   }
 
   _ideaRepo() { return repo(this.api, this._sr, 'ideas'); }
@@ -110,7 +109,7 @@ export class IdeaBoard {
     if (this._searchText) items = items.filter(i => (i.title||'').toLowerCase().includes(this._searchText) || (i.summary||'').toLowerCase().includes(this._searchText));
 
     if (!items.length) {
-      this._listWrap.innerHTML = '<div class="ms-empty" style="margin-top:40px;"><div class="ms-empty-icon">💡</div><div>暂无灵感，在顶部的输入框中记录第一个灵感吧</div></div>';
+      this._listWrap.innerHTML = '<div class="ms-empty" style="margin-top:40px;"><svg class="ms-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.272 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 01-2 2 2 2 0 01-2-2v-.531c0-.895-.356-1.754-.988-2.386l-.547-.547z"/></svg><div>暂无灵感，在顶部的输入框中记录第一个灵感吧</div></div>';
       return;
     }
 
@@ -120,8 +119,6 @@ export class IdeaBoard {
   }
 
   _renderItem(idea) {
-    const isExpanded = this._expandId === idea.id;
-
     const el = ce('div', '');
     el.className = 'ms-item-card';
 
@@ -134,7 +131,7 @@ export class IdeaBoard {
     const titleEl = ce('div', `font-weight:600;font-size:14px;${idea.status === 'archived' ? 'color:var(--ms-text-secondary);' : ''}`, idea.title);
     bn(titleEl, body);
 
-    if (isExpanded && idea.summary) {
+    if (idea.summary) {
       bn(ce('div', 'font-size:12px;color:var(--ms-text-secondary);margin-top:6px;line-height:1.5;', idea.summary), body);
     }
 
@@ -148,7 +145,7 @@ export class IdeaBoard {
     const stMap = { active: '活跃', used: '已用', archived: '归档' };
     bn(sp('span', `font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(85,85,85,0.2);color:var(--ms-text-secondary);`, stMap[idea.status] || idea.status), meta);
 
-    if (isExpanded && idea.tags?.length) {
+    if (idea.tags?.length) {
       idea.tags.forEach(tag => bn(sp('span', 'font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.05);', tag), meta));
     }
 
@@ -158,32 +155,31 @@ export class IdeaBoard {
     bn(body, top);
     bn(top, el);
 
-    if (isExpanded) {
-      if (idea.refLinks?.length) {
-        const links = ce('div', 'font-size:11px;color:var(--ms-text-secondary);margin-top:8px;padding-top:8px;border-top:1px solid var(--ms-border);');
-        links.textContent = '参考链接:';
-        for (const link of idea.refLinks) {
-          bn(ce('div', 'padding:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;', `🔗 ${link}`), links);
-        }
-        bn(links, el);
-      }
+    const actions = ce('div', '');
+    actions.className = 'ms-item-card-actions';
 
-      const acts = ce('div', 'display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--ms-border);');
-      bn(btn('编辑', null, (e) => { e.stopPropagation(); this._openDetail(idea); }), acts);
-      bn(btn('转为选题', 'primary', (e) => { e.stopPropagation(); this._toTopic(idea); }), acts);
-      if (idea.status !== 'archived') {
-        bn(btn('归档', null, (e) => { e.stopPropagation(); this._archive(idea); }), acts);
-      }
-      const db = btn('删除', null, (e) => { e.stopPropagation(); this._delete(idea); });
-      db.style.color = 'var(--ms-danger)';
-      bn(db, acts);
-      bn(acts, el);
+    const editBtn = btn('编辑', null, null);
+    editBtn.onclick = (e) => { e.stopPropagation(); this._openDetail(idea); };
+    bn(editBtn, actions);
+
+    const toTopicBtn = btn('转为选题', 'primary', null);
+    toTopicBtn.onclick = (e) => { e.stopPropagation(); this._toTopic(idea); };
+    bn(toTopicBtn, actions);
+
+    if (idea.status !== 'archived') {
+      const archiveBtn = btn('归档', null, null);
+      archiveBtn.onclick = (e) => { e.stopPropagation(); this._archive(idea); };
+      bn(archiveBtn, actions);
     }
 
-    el.onclick = () => {
-      this._expandId = this._expandId === idea.id ? null : idea.id;
-      this._renderList();
-    };
+    const delBtn = btn('删除', null, null);
+    delBtn.style.color = 'var(--ms-danger)';
+    delBtn.onclick = (e) => { e.stopPropagation(); this._delete(idea); };
+    bn(delBtn, actions);
+
+    bn(actions, el);
+
+    el.onclick = () => this._openDetail(idea);
 
     return el;
   }

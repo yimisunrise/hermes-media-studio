@@ -40,7 +40,13 @@ export class ThemeStrategy {
     container.appendChild(content);
 
     if (this.themes.length === 0) {
-      content.innerHTML = '<div class="ms-empty"><div class="ms-empty-icon">📋</div><div>暂无主题，点击上方「新增主题」创建第一个主题</div></div>';
+      content.innerHTML = `<div class="ms-empty">
+        <svg class="ms-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+          <polyline points="13 2 13 9 20 9"/>
+        </svg>
+        <div>暂无主题，点击上方「新增主题」创建第一个主题</div>
+      </div>`;
       return;
     }
 
@@ -65,9 +71,7 @@ export class ThemeStrategy {
 
   _renderCard(theme) {
     const card = document.createElement('div');
-    card.style.cssText = 'background:var(--ms-bg-card);border-radius:var(--ms-radius);padding:14px;border:1px solid var(--ms-border);cursor:pointer;transition:var(--ms-transition);position:relative;';
-    card.addEventListener('mouseenter', () => { card.style.borderColor = 'var(--ms-accent)'; });
-    card.addEventListener('mouseleave', () => { card.style.borderColor = 'var(--ms-border)'; });
+    card.className = 'ms-item-card';
 
     const swatch = document.createElement('div');
     swatch.style.cssText = `width:100%;height:4px;border-radius:2px;margin-bottom:10px;background:${theme.color || '#e94560'};`;
@@ -106,9 +110,7 @@ export class ThemeStrategy {
     card.appendChild(meta);
 
     const actions = document.createElement('div');
-    actions.style.cssText = 'position:absolute;top:8px;right:8px;display:none;gap:4px;';
-    card.addEventListener('mouseenter', () => { actions.style.display = 'flex'; });
-    card.addEventListener('mouseleave', () => { actions.style.display = 'none'; });
+    actions.className = 'ms-item-card-actions';
 
     const editBtn = document.createElement('button');
     editBtn.className = 'ms-btn ms-btn-sm ms-btn-icon';
