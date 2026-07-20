@@ -25,6 +25,11 @@
   --ms-font: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --ms-font-mono: 'Cascadia Code', 'Fira Code', monospace;
   --ms-input-bg: var(--input-bg, var(--ms-bg-primary));
+  --ms-input-radius: var(--ms-radius-sm, 4px);
+  --ms-input-padding: 6px 12px;
+  --ms-input-font-size: 13px;
+  --ms-input-sm-padding: 3px 8px;
+  --ms-input-sm-font-size: 12px;
   --ms-bg-overlay: rgba(7, 12, 19, 0.62);
 }
 
@@ -88,7 +93,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--ms-radius);
   background: transparent;
   color: var(--text);
   font-size: 13px;
@@ -149,7 +154,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--ms-radius);
   background: transparent;
   color: var(--text);
   font-size: 13px;
@@ -280,13 +285,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: var(--ms-input-padding);
   border: 1px solid var(--ms-border);
-  border-radius: var(--ms-radius);
+  border-radius: var(--ms-input-radius);
   background: var(--ms-bg-card);
   color: var(--ms-text-primary);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--ms-input-font-size);
   transition: var(--ms-transition);
   white-space: nowrap;
 }
@@ -308,23 +313,40 @@
   color: #fff;
 }
 
-.ms-btn-sm { padding: 4px 10px; font-size: 12px; }
+.ms-btn-danger {
+  background: var(--ms-danger);
+  color: #fff;
+  border-color: var(--ms-danger);
+}
+
+.ms-btn-danger:hover {
+  background: var(--ms-danger-hover, #c0392b);
+  border-color: var(--ms-danger-hover, #c0392b);
+  color: #fff;
+}
+
+.ms-btn-sm { padding: var(--ms-input-sm-padding); font-size: var(--ms-input-sm-font-size); }
 .ms-btn-icon { padding: 6px; min-width: 32px; justify-content: center; }
 
 /* === Form Elements === */
 .ms-select, .ms-input {
-  padding: 6px 12px;
+  padding: var(--ms-input-padding);
   border: 1px solid var(--ms-border);
-  border-radius: var(--ms-radius-sm);
+  border-radius: var(--ms-input-radius);
   background: var(--ms-bg-primary);
   color: var(--ms-text-primary);
-  font-size: 13px;
+  font-size: var(--ms-input-font-size);
   font-family: var(--ms-font);
 }
 
 .ms-select:focus, .ms-input:focus {
   outline: none;
   border-color: var(--ms-accent);
+}
+
+.ms-input-sm {
+  padding: var(--ms-input-sm-padding);
+  font-size: var(--ms-input-sm-font-size);
 }
 
 .ms-input-search { min-width: 200px; }
@@ -384,12 +406,12 @@
 .ms-form-group textarea {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: var(--ms-input-padding);
   border: 1px solid var(--ms-border);
-  border-radius: 8px;
+  border-radius: var(--ms-input-radius);
   background: var(--ms-input-bg);
   color: var(--ms-text-primary);
-  font-size: 13px;
+  font-size: var(--ms-input-font-size);
   font-family: var(--ms-font);
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
@@ -607,6 +629,14 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
+}
+
+/* === Tab Buttons === */
+.ms-tab-btn {
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  font-size: 13px;
 }
 
 /* === Filter Bar === */
